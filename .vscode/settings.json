@@ -84,7 +84,9 @@
         "istream": "c",
         "fatfs.h": "c",
         "integer.h": "c",
-        "string": "c"
+        "string": "c",
+        "buf.h": "c",
+        "debug.h": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled",
     

@@ -69,64 +69,64 @@ int fs_test(void)
 
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
-// static int
-// fdalloc(struct file *f)
-// {
-//   int fd;
-//   struct proc *p = myproc();
+static int
+fdalloc(struct file *f)
+{
+  int fd;
+  struct proc *p = myproc();
 
-//   for(fd = 0; fd < NOFILE; fd++){
-//     if(p->ofile[fd] == 0){
-//       p->ofile[fd] = f;
-//       return fd;
-//     }
-//   }
-//   return -1;
-// }
+  for(fd = 0; fd < NOFILE; fd++){
+    if(p->ofile[fd] == 0){
+      p->ofile[fd] = f;
+      return fd;
+    }
+  }
+  return -1;
+}
 
 
-// uint64
-// sys_open(void){
-//     char pathname[MAXPATH];
-//     int flags;
-//     FILINFO fno;
-//     FRESULT fr;
-//     struct file *f;
-//     int n, fd;
+uint64
+sys_open(void){
+    char pathname[MAXPATH];
+    int flags;
+    FILINFO fno;
+    FRESULT fr;
+    struct file *f;
+    int n, fd;
 
-//     if((n = argstr(0, pathname, MAXPATH)) < 0 || argint(1, &flags) < 0)
-//         return -1;
+    if((n = argstr(0, pathname, MAXPATH)) < 0 || argint(1, &flags) < 0)
+        return -1;
 
-//     fr = f_stat(pathname, &fno);    
-//     if(fr != FR_OK){
-//         panic("sys_open 1");
-//         return -1;
-//     }
+    fr = f_stat(pathname, &fno);    
+    if(fr != FR_OK){
+        panic("sys_open 1");
+        return -1;
+    }
 
-//     if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
-//         panic("sys_open 2");
-//         if(f)
-//         fileclose(f);
-//         return -1;
-//     }
+    if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+        panic("sys_open 2");
+        if(f)
+        fileclose(f);
+        return -1;
+    }
 
-//     if(fno.fattrib & AM_DIR){
-//         f->type = FD_DIR;
-//         f_opendir(&(f->obj.d), pathname);
-//     }
-//     else{
-//         int fg = 0;
-//         if(flags & O_CREATE)
-//             fg |= FA_CREATE_NEW;
-//         else{
-//             fg |= FA_READ;
-//             fg |= FA_WRITE;
-//         }
+    if(fno.fattrib & AM_DIR){
+        f->type = FD_DIR;
+        f_opendir(&(f->obj.d), pathname);
+    }
+    else{
+        int fg = 0;
+        if(flags & O_CREATE)
+            fg |= FA_CREATE_NEW;
+        else{
+            fg |= FA_READ;
+            fg |= FA_WRITE;
+        }
         
-//         f->type = FD_FILE;
-//         f_open(&(f->obj.f), pathname, fg);
-//     }
+        f->type = FD_FILE;
+        f_open(&(f->obj.f), pathname, fg);
+    }
 
-//     print_opened_file();
-//     return fd;
-// }
+    print_opened_file();
+    return fd;
+}

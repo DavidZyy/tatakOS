@@ -14,6 +14,7 @@
 #include "kernel/proc.h"
 #include "device.h"
 #include "mm/vm.h"
+#include "debug.h"
 
 device_t devs[NDEV];
 struct {
@@ -24,14 +25,17 @@ struct {
 void 
 print_opened_file(){
   struct file *f;
+  int i = 0;
     // traverse file table to print opened file, for open test 
   acquire(&ftable.lock);
-for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 1){
-
+  for(f = ftable.file; f < ftable.file + NFILE; f++){
+    if(f->ref > 0){
+      // printf(red("%s\n"), )
+      i++;
     }
   }
-release(&ftable.lock);
+  printf(red("%d\n"), i);
+  release(&ftable.lock);
 }
 
 // void

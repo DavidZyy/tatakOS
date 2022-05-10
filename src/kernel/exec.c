@@ -1,12 +1,32 @@
-#include "types.h"
-#include "param.h"
+// #include "types.h"
+// #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
-#include "atomic/spinlock.h"
+// #include "riscv.h"
+// #include "atomic/spinlock.h"
 #include "kernel/proc.h"
 #include "kernel/elf.h"
+// #include "defs.h"
+// #include "mm/vm.h"
+
+
+#include "fs/ff.h"
+#include "fs/diskio.h"
+#include "fs/ffconf.h"
+#include "types.h"
+#include "riscv.h"
 #include "defs.h"
 #include "mm/vm.h"
+#include "param.h"
+#include "fs/stat.h"
+#include "fs/fs.h"
+#include "atomic/spinlock.h"
+#include "kernel/proc.h"
+#include "atomic/sleeplock.h"
+#include "fs/file.h"
+#include "fs/fcntl.h"
+#include "fs/fatfs.h"
+#include "debug.h"
+
 
 static int loadseg(pde_t *pgdir, uint64 addr, struct inode *ip, uint offset, uint sz);
 
@@ -153,4 +173,26 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
   }
   
   return 0;
+}
+
+
+/**
+ * @brief rewrite exec function
+ * 
+ * @param path 
+ * @param argv 
+ * @return int 
+ */
+int
+exec(char *path, char **argv){
+  char *s, *last;
+  int i, off;
+  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
+  struct elfhdr elf;
+  struct inode *ip;
+  struct proghdr ph;
+  pagetable_t pagetable = 0, oldpagetable;
+  struct proc *p = myproc();
+
+
 }
