@@ -26,6 +26,7 @@
 #include "fs/file.h"
 #include "fs/fcntl.h"
 #include "fs/fatfs.h"
+#include "debug.h"
 
 
 int fs_test(void)
@@ -60,7 +61,8 @@ int fs_test(void)
         if (fno.fattrib & AM_DIR)
             printf("dir:%s\n", fno.fname);
         else
-            printf("file:%s\n", fno.fname);
+            // printf("\e[31mfile:%s\n\e[0m", fno.fname);
+            printf(yellow("file:%s\n"), fno.fname);
         status = f_findnext(&dj, &fno);
     return 0;
 }
