@@ -1,11 +1,12 @@
 #include "printf.h"
 #include "utils.h"
+#include "debug.h"
 
 volatile int panicked = 0;
 
 void panic(char *s)
 {
-  printf("panic: ");
+  printf(red("panic: "));
   printf(s);
   printf("\n");
   printf("backtrace: \n");

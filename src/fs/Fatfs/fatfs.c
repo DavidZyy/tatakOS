@@ -33,10 +33,10 @@ int fs_test(void)
 {
     static FATFS sdcard_fs;
     FRESULT status;
-    DIR dj;
-    FILINFO fno;
+    // DIR dj;
+    // FILINFO fno;
 
-    printf("/********************fs test*******************/\n");
+    printf(green("/********************fs test*******************/\n"));
     // f_init();
     status = f_mount(&sdcard_fs, _T("/"), 1);
     printf("mount sdcard:%d\n", status);
@@ -54,16 +54,24 @@ int fs_test(void)
     //     status = f_findnext(&dj, &fno);
     // }
     // f_closedir(&dj);
-    f_chdir("dir1");
+    // f_chdir("dir1");
 
-    const char *fname = "dir4/file3";
-    f_stat(fname, &fno);
-        if (fno.fattrib & AM_DIR)
-            printf("dir:%s\n", fno.fname);
-        else
-            // printf("\e[31mfile:%s\n\e[0m", fno.fname);
-            printf(yellow("file:%s\n"), fno.fname);
-        status = f_findnext(&dj, &fno);
+    // const char *fname = "dir4/file3";
+    // f_stat(fname, &fno);
+    //     if (fno.fattrib & AM_DIR)
+    //         printf("dir:%s\n", fno.fname);
+    //     else
+    //         // printf("\e[31mfile:%s\n\e[0m", fno.fname);
+    //         printf(green("file:%s\n"), fno.fname);
+    //     status = f_findnext(&dj, &fno);
+    // return 0;
+    FIL f;
+    f_open(&f, "/dir1/dir4/file3", FA_READ);
+    UINT btr = 512, br;
+    char buf[512];
+    f_read(&f, buf, btr, &br);
+    printf(green("%s\n"), buf);
+
     return 0;
 }
 

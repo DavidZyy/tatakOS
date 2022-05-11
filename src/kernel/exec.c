@@ -189,10 +189,31 @@ exec(char *path, char **argv){
   int i, off;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
   struct elfhdr elf;
-  struct inode *ip;
+  // struct inode *ip;
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
+  FIL f;
+  FRESULT r;
+
+  if((r = f_open(&f, path, FA_READ)) != FR_OK){
+    panic("exec1");
+  }
+
+  //Check ELF header
+  if((r = f_read(&f, (void *)&elf, sizeof(elf), NULL)) != FR_OK){
+    panic("exec2");
+    goto bad;
+  }
+  if(elf.magic != ELF_MAGIC)
+    goto bad;
+
+  if((pagetable = proc_pagetable(p)) == 0)
+    goto bad;
+
+  
+  // Load program into memory.
+  for()
 
 }
