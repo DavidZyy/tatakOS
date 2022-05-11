@@ -1,13 +1,33 @@
-#include "types.h"
-#include "param.h"
+// #include "types.h"
+// #include "param.h"
 #include "memlayout.h"
-#include "riscv.h"
-#include "atomic/spinlock.h"
-#include "kernel/proc.h"
+// #include "riscv.h"
+// #include "atomic/spinlock.h"
+// #include "kernel/proc.h"
 #include "utils.h"
+// #include "defs.h"
+// #include "mm/vm.h"
+// #include "fs/fatfs.h"
+
+#include "fs/ff.h"
+#include "fs/diskio.h"
+#include "fs/ffconf.h"
+#include "types.h"
+#include "riscv.h"
 #include "defs.h"
 #include "mm/vm.h"
+#include "param.h"
+#include "fs/stat.h"
+#include "fs/fs.h"
+#include "atomic/spinlock.h"
+#include "kernel/proc.h"
+#include "atomic/sleeplock.h"
+#include "fs/file.h"
+#include "fs/fcntl.h"
 #include "fs/fatfs.h"
+#include "debug.h"
+
+
 
 struct cpu cpus[NUM_CORES];
 
@@ -254,7 +274,14 @@ userinit(void)
   p->trapframe->sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
+
   // p->cwd = namei("/");
+  struct file *f;
+  if((f = filealloc()) == 0 )
+    panic("userinit");
+  f->type = FD_DIR;
+  f_opendir(&f->obj.d, "/");
+  p->cwd = f;
 
   p->state = RUNNABLE;
 
@@ -313,7 +340,7 @@ fork(void)
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
-  np->cwd = idup(p->cwd);
+  np->cwd = filedup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -367,9 +394,9 @@ exit(int status)
     }
   }
 
-  begin_op();
-  iput(p->cwd);
-  end_op();
+  // begin_op();
+  fileclose(p->cwd);
+  // end_op();
   p->cwd = 0;
 
   acquire(&wait_lock);

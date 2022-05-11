@@ -138,3 +138,16 @@ sys_open(void){
     print_opened_file();
     return fd;
 }
+
+uint64 sys_read(void) {return 0;}
+uint64 sys_pipe(void) {return 0;}
+uint64 sys_exec(void) {return 0;}
+uint64 sys_fstat(void) {return 0;}
+uint64 sys_chdir(void) {return 0;}
+uint64 sys_dup(void) {return 0;}
+uint64 sys_write(void) {return 0;}
+uint64 sys_mknod(void) {return 0;}
+uint64 sys_unlink(void) {return 0;}
+uint64 sys_link(void) {return 0;}
+uint64 sys_mkdir(void) {return 0;}
+uint64 sys_close(void) {return 0;}
