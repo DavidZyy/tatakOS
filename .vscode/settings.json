@@ -86,7 +86,8 @@
         "integer.h": "c",
         "string": "c",
         "buf.h": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "initcode_bin.h": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled",
     

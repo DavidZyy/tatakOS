@@ -560,8 +560,9 @@ forkret(void)
     // be run from main().
     first = 0;
     // fsinit(ROOTDEV);
-    fs_test();
-    for(;;);
+    // fs_test();
+    // for(;;);
+    fatfs_init();
   }
 
   usertrapret();

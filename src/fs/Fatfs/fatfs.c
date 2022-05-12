@@ -28,6 +28,18 @@
 #include "fs/fatfs.h"
 #include "debug.h"
 
+int
+fatfs_init(void){
+    static FATFS sdcard_fs;
+    FRESULT status;
+    printf(green("/********************fatfs init*******************/\n"));
+    // f_init();
+    status = f_mount(&sdcard_fs, _T("/"), 1);
+    printf("mount sdcard:%d\n", status);
+    if (status != FR_OK)
+        panic("fatfs_init!");
+    return 0;
+}
 
 int fs_test(void)
 {
