@@ -7,6 +7,7 @@
 #include "defs.h"
 #include "utils.h"
 #include "mm/io.h"
+#include "debug.h"
 
 static uint64_t *clint_mtime;
 // #define RESET_TIMER() sbi_set_timer(*clint_mtime + CLOCK_FREQ)
@@ -57,7 +58,11 @@ extern void vmprint(pagetable_t pagetable);
 void
 usertrap(void)
 {
+  printf(green("%d\n"), read_csr(scause));
+  printf(yellow("%s\n"), myproc()->name);
   uint64 scause = read_csr(scause);
+    printf(green("scause %p\n"), scause);
+    printf("sepc=%p stval=%p\n", read_csr(sepc), read_csr(stval));
   if((r_sstatus() & SSTATUS_SPP) != 0){
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", read_csr(sepc), read_csr(stval));
@@ -143,7 +148,7 @@ usertrapret(void)
   // jump to trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
-  uint64 fn = TRAMPOLINE + (userret - trampoline);
+  uint64 fn = TRAMPOLINE + (userret - trampoline);// fn是userret函数的地址
   ((void (*)(uint64))fn)(TRAPFRAME);
 }
 

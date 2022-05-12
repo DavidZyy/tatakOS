@@ -263,6 +263,7 @@ exec(char *path, char **argv){
       goto bad;
 
   }
+  // f = 0;
 
   p = myproc();
   uint64 oldsz = p->sz;
@@ -321,6 +322,9 @@ exec(char *path, char **argv){
   switchuvm(p);
   // printf(yellow("here runed!\n"));
   proc_freepagetable(oldpagetable, oldsz);
+
+  printf(yellow("%d\n"), p->sz);
+
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
 bad:
@@ -344,7 +348,7 @@ loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint sz)
       n = PGSIZE;
     // if(readi(ip, 0, (uint64)pa, offset+i, n) != n)
     //   return -1;
-    if(f_read_off(f, (void *)pa, n, &br, offset+i))
+    if(f_read_off(f, (void *)pa, n, &br, offset+i) != FR_OK)
       return -1;
   }
   

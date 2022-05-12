@@ -26,6 +26,7 @@ int handle_pagefault(uint64_t scause) {
     return -1;
 
     bad:
+    printf("handle pagefault\n");
     p->killed = 1;
     return 0;
 }

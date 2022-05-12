@@ -16,8 +16,8 @@ main(void)
    8:	00813823          	sd	s0,16(sp)
    c:	00913423          	sd	s1,8(sp)
   10:	02010413          	addi	s0,sp,32
-  int pid, wpid;
 
+  
 
   // printf(red("init run!\n"));
 
