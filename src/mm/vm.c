@@ -106,7 +106,7 @@ int setupkvm(pagetable_t pagetable) {
     kmap_t map = kmap[i];
     // print_map(map);
     if(_mappages(pagetable, map.va, map.size, map.pa, map.perm, map.pg_spec) == -1) {
-      // 卸载之前成功映射的页面
+      // 卸载之前成功映射的页面, 某个i失败了，i前面的全都卸载
       for(int j = 0; j < i; j++) {
         map = kmap[j];
         _uvmunmap(pagetable, map.va, ROUND_COUNT_SPEC(map.size, map.pg_spec), 0, map.pg_spec);

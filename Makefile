@@ -116,16 +116,25 @@ clean:
 fs.img = $(ROOT)/fs.img
 # fs.img = $(BUILD_ROOT)/fs.img
 
-# ifeq ("$(platform)", "qemu")
-# run: $(fs.img)
-# endif
+ifeq ("$(platform)", "qemu")
+run: $(fs.img)
+endif
 
-# 磁盘映像制作
-$(fs.img): $(SCRIPT)/mkfs user 
-	@$< $@ README $(shell find $(U_PROG_DIR) -name "_*")
+dst=/mnt
 
-$(SCRIPT)/mkfs: $(SCRIPT)/mkfs.c include/fs/fs.h include/param.h
-	gcc -Werror -Wall -Iinclude -o $@ $<
+$(fs.img): user
+	@$(SCRIPT)/mkfs.sh
+	@sudo mount fs.img $(dst)
+	@sudo cp $(U_PROG_DIR)/_init $(dst)/init
+	@sudo umount $(dst)
+	@$(OBJDUMP) -S $(U_PROG_DIR)/_init > init.asm
+
+# # 磁盘映像制作
+# $(fs.img): $(SCRIPT)/mkfs user 
+# 	@$< $@ README $(shell find $(U_PROG_DIR) -name "_*")
+
+# $(SCRIPT)/mkfs: $(SCRIPT)/mkfs.c include/fs/fs.h include/param.h
+# 	gcc -Werror -Wall -Iinclude -o $@ $<
 
 user: $(syscall)
 	@mkdir -p $(U_PROG_DIR)

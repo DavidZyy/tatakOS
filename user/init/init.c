@@ -8,13 +8,18 @@
 #include "fs/file.h"
 #include "user.h"
 #include "fs/fcntl.h"
+#include "debug.h"
 
 char *argv[] = { "sh", 0 };
 
 int
 main(void)
 {
+  // for(;;);
   int pid, wpid;
+
+
+  // printf(red("init run!\n"));
 
   if(open("console", O_RDWR) < 0){
     mknod("console", CONSOLE, 0);

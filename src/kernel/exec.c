@@ -210,6 +210,9 @@ static int loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint s
  */
 int
 exec(char *path, char **argv){
+  printf(red("enter exec!\n"));
+  printf(red("%s\n"), path);
+
   char *s, *last;
   int i, off;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
@@ -314,7 +317,9 @@ exec(char *path, char **argv){
   p->sz = sz;
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
+  // printf(yellow("I'm here!\n"));
   switchuvm(p);
+  // printf(yellow("here runed!\n"));
   proc_freepagetable(oldpagetable, oldsz);
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
@@ -327,6 +332,7 @@ loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint sz)
 {
   uint i, n;
   uint64 pa;
+  UINT br;
 
   for(i = 0; i < sz; i += PGSIZE){
     pa = walkaddr(pagetable, va + i);
@@ -338,7 +344,7 @@ loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint sz)
       n = PGSIZE;
     // if(readi(ip, 0, (uint64)pa, offset+i, n) != n)
     //   return -1;
-    if(f_read_off(f, (void *)pa, n, NULL, offset+i))
+    if(f_read_off(f, (void *)pa, n, &br, offset+i))
       return -1;
   }
   

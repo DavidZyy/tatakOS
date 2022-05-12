@@ -27,7 +27,7 @@ __attribute__((section(".startup"))) void main() {
     argv[0] = path;
     argv[1] = 0;
     ktest();
-    exec(path, argv);
+    exec(path, argv);//现在时用户空间，系统调用，进入内核空间
     for(;;);
 }
 
