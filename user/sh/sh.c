@@ -3,6 +3,7 @@
 #include "types.h"
 #include "user.h"
 #include "fs/fcntl.h"
+#include "debug.h"
 
 // Parsed command representation
 #define EXEC  1
@@ -168,6 +169,10 @@ main(void)
       runcmd(parsecmd(buf));
     wait(0);
   }
+
+  printf(red("no input!!\n"));
+  for(;;);
+
   exit(0);
 }
 

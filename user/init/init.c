@@ -30,7 +30,7 @@ main(void)
   dup(0);  // stderr
 
   for(;;){
-    printf("init: starting sh\n");
+    printf(yellow("init: starting sh\n"));
     pid = fork();
     if(pid < 0){
       printf("init: fork failed\n");
@@ -50,6 +50,8 @@ main(void)
       wpid = wait((int *) 0);
       if(wpid == pid){
         // the shell exited; restart it.
+        printf(green("shell exit!!\n"));
+        for(;;);
         break;
       } else if(wpid < 0){
         printf("init: wait returned an error\n");

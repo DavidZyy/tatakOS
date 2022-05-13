@@ -188,7 +188,7 @@ sys_open(void){
     return fd;
 }
 
-uint64 sys_read(void) {return 0;}
+// uint64 sys_read(void) {return 0;}
 uint64 sys_pipe(void) {return 0;}
 uint64 sys_fstat(void) {return 0;}
 uint64 sys_chdir(void) {return 0;}
@@ -269,4 +269,16 @@ sys_dup(void)
     return -1;
   filedup(f);
   return fd;
+}
+
+uint64
+sys_read(void)
+{
+  struct file *f;
+  int n;
+  uint64 p;
+
+  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
+    return -1;
+  return fileread(f, p, n);
 }

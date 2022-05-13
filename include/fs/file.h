@@ -42,4 +42,5 @@ struct file {
   }obj; 
   int ref;
   int major;
+  int minor;
 };
