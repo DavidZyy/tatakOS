@@ -104,6 +104,28 @@ fdalloc(struct file *f)
   return -1;
 }
 
+static int
+argfd(int n, int *pfd, struct file **pf)
+{
+  int fd;
+  struct file *f;
+
+  if(argint(n, &fd) < 0)
+    return -1;
+
+//   printf(yellow("fd: %d\n"), fd);
+  if((f=myproc()->ofile[fd]) == 0)
+    panic("argfd 1");
+  if(fd < 0 || fd >= NOFILE || (f=myproc()->ofile[fd]) == 0)
+    panic("argfd 2");
+    // return -1;
+  if(pfd)
+    *pfd = fd;
+  if(pf)
+    *pf = f;
+  return 0;
+}
+
 
 uint64
 sys_open(void){
@@ -116,7 +138,21 @@ sys_open(void){
 
     if((n = argstr(0, pathname, MAXPATH)) < 0 || argint(1, &flags) < 0)
         return -1;
-    printf(red("%s\n"), pathname);
+
+    // printf(red("%s\n"), pathname);
+    if(strncmp(pathname, "console", 7) == 0){
+    if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+        panic("sys_open 3");
+        if(f)
+        fileclose(f);
+        return -1;
+    }
+    f->type = FD_DEVICE;
+
+    f->major = CONSOLE;
+    // printf(red("fd: %d\n"), fd);
+    return fd;
+    }
 
     fr = f_stat(pathname, &fno);    
     if(fr != FR_OK){
@@ -156,8 +192,8 @@ uint64 sys_read(void) {return 0;}
 uint64 sys_pipe(void) {return 0;}
 uint64 sys_fstat(void) {return 0;}
 uint64 sys_chdir(void) {return 0;}
-uint64 sys_dup(void) {return 0;}
-uint64 sys_write(void) {return 0;}
+// uint64 sys_dup(void) {return 0;}
+// uint64 sys_write(void) {return 0;}
 uint64 sys_mknod(void) {return 0;}
 uint64 sys_unlink(void) {return 0;}
 uint64 sys_link(void) {return 0;}
@@ -203,4 +239,34 @@ sys_exec(void)
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
   return -1;
+}
+
+uint64
+sys_write(void)
+{
+    // printf(green("sys_write\n"));
+  struct file *f;
+  int n;
+  uint64 p;
+
+  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
+    panic("sys_write");
+    // return -1;
+
+//   printf(yellow("sys_write\n"));
+  return filewrite(f, p, n);
+}
+
+uint64
+sys_dup(void)
+{
+  struct file *f;
+  int fd;
+
+  if(argfd(0, 0, &f) < 0)
+    return -1;
+  if((fd=fdalloc(f)) < 0)
+    return -1;
+  filedup(f);
+  return fd;
 }

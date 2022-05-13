@@ -210,8 +210,8 @@ static int loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint s
  */
 int
 exec(char *path, char **argv){
-  printf(red("enter exec!\n"));
-  printf(red("%s\n"), path);
+  // printf(red("enter exec!\n"));
+  // printf(red("%s\n"), path);
 
   char *s, *last;
   int i, off;
@@ -241,11 +241,13 @@ exec(char *path, char **argv){
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
 
-  
+  // printf(red("%d %d \n"), elf.phoff, elf.phnum); 
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(f_read_off(&f, (void *)&ph, sizeof(ph), &br, off) != FR_OK)
       goto bad;
+
+    // printf(green("%d %d %d %d\n"), ph.memsz, ph.vaddr, ph.filesz, ph.off);
     if(ph.type != ELF_PROG_LOAD)
       continue;
     if(ph.memsz < ph.filesz)
@@ -258,6 +260,17 @@ exec(char *path, char **argv){
     sz = sz1;
     if((ph.vaddr % PGSIZE) != 0)
       goto bad;
+/**********************直接从文件中读取，检测文件是否正确*******************/
+    // char buf[4];
+    // for(i = 0; i < ph.filesz; i+=4){
+    //     printf(yellow("%x: "), i);
+    //     f_read_off(&f, (void *)buf, 4, &br, ph.off+i);
+    //     printf("%08x\n", *(uint32*)buf);
+    // }
+
+    // for(;;);
+
+/**********************直接从文件中读取，检测文件是否正确*******************/
 
     if(loadseg(pagetable, ph.vaddr, &f, ph.off, ph.filesz) < 0)
       goto bad;
@@ -323,7 +336,8 @@ exec(char *path, char **argv){
   // printf(yellow("here runed!\n"));
   proc_freepagetable(oldpagetable, oldsz);
 
-  printf(yellow("%d\n"), p->sz);
+    // printf(yellow("%s\n"), p->name);
+  // printf(yellow("%d\n"), p->sz);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
@@ -338,6 +352,20 @@ loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint sz)
   uint64 pa;
   UINT br;
 
+/**********************直接从文件中读取，检测文件是否正确*******************/
+    // char buf[4];
+    // for(i = 0; i < sz; i+=4){
+    //     printf(yellow("%x: "), i);
+    //     f_read_off(f, (void *)buf, 4, &br, offset+i);
+    //     printf("%08x\n", *(uint32*)buf);
+    // }
+
+    // for(;;);
+
+/**********************直接从文件中读取，检测文件是否正确*******************/
+
+
+  // printf(red("%d %d  sz: %x \n"), va, offset, sz);
   for(i = 0; i < sz; i += PGSIZE){
     pa = walkaddr(pagetable, va + i);
     if(pa == 0)
@@ -346,11 +374,36 @@ loadseg(pagetable_t pagetable, uint64 va, FIL *f, uint offset, uint sz)
       n = sz - i;
     else
       n = PGSIZE;
+    
+    // printf(yellow("n: %x\n"), n);
     // if(readi(ip, 0, (uint64)pa, offset+i, n) != n)
     //   return -1;
-    if(f_read_off(f, (void *)pa, n, &br, offset+i) != FR_OK)
-      return -1;
+    //这里为什么是物理地址pa呢？
+    // if(f_read_off(f, (void *)pa, n, &br, offset+i) != FR_OK)
+    //   panic("loadseg!");
+
+    uint32 *tmp = (uint32*)pa;
+    char buf[4];
+    for(int id1 = i; id1 < i+n; id1 += 4){
+      f_read_off(f, (void *)buf, 4, &br, offset+id1);
+      *tmp = *(uint32*)buf;
+      tmp++;
+    }
+/*********************************************************/
+  // if(1){
+  //   // uint64* temp = (uint64*)pa;
+  //   uint32* temp = (uint32*)pa;
+  //   // printf(green("%08x"), *(uint64*)((uint64)temp + 0xb7c)); 
+  //   for(int j = i; j < i+n; j += 4){
+  //     printf(yellow("%x: "), j);
+
+  //     // printf(green("%08x\n"), *(uint64*)((uint64)temp + j)); 
+  //     printf(green("%08x\n"), *(uint32*)((uint64)temp + j)); 
+  //   }
+  // }
+/*********************************************************/ 
+
   }
-  
+
   return 0;
 }

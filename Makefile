@@ -112,6 +112,8 @@ clean:
 	-@rm -rf $(syscall_dir)
 	-@rm -rf $K/include/generated
 	@echo -e "\n\033[32;1mCLEAN DONE\033[0m\n"
+	-@rm init.asm
+	-@rm fs.img 
 
 fs.img = $(ROOT)/fs.img
 # fs.img = $(BUILD_ROOT)/fs.img
@@ -126,6 +128,7 @@ $(fs.img): user
 	@$(SCRIPT)/mkfs.sh
 	@sudo mount fs.img $(dst)
 	@sudo cp $(U_PROG_DIR)/_init $(dst)/init
+	@sudo cp $(U_PROG_DIR)/_sh $(dst)/sh
 	@sudo umount $(dst)
 	@$(OBJDUMP) -S $(U_PROG_DIR)/_init > init.asm
 

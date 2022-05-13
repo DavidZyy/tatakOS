@@ -199,3 +199,29 @@ fileclose(struct file *f)
 //   return ret;
 // }
 
+int
+filewrite(struct file *f, uint64 addr, int n){
+
+  // printf(red("filewrite\n"));
+  int ret = 0;
+  if(f->type == FD_PIPE){
+
+  }
+  else if(f->type == FD_DEVICE)
+  {
+    
+    ret = devs[f->major].write(1, addr, n);
+  }
+  else if(f->type == FD_FILE)
+  {
+
+  }
+  else if(f->type == FD_DIR)
+  {
+
+  }
+  else{
+    panic("filewrite!");
+  }
+  return ret;
+}

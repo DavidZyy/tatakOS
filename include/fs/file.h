@@ -34,11 +34,12 @@ struct inode {
 #define CONSOLE 1
 
 struct file {
-  enum {FD_NONE, FD_FILE, FD_DIR} type;
+  enum {FD_NONE, FD_FILE, FD_DIR, FD_DEVICE, FD_PIPE} type;
   union obj
   {
     FIL f;
     DIR d;
   }obj; 
   int ref;
+  int major;
 };

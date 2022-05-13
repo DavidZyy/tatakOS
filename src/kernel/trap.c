@@ -58,11 +58,11 @@ extern void vmprint(pagetable_t pagetable);
 void
 usertrap(void)
 {
-  printf(green("%d\n"), read_csr(scause));
-  printf(yellow("%s\n"), myproc()->name);
+  // printf(green("%d\n"), read_csr(scause));
+  // printf(yellow("%s\n"), myproc()->name);
   uint64 scause = read_csr(scause);
-    printf(green("scause %p\n"), scause);
-    printf("sepc=%p stval=%p\n", read_csr(sepc), read_csr(stval));
+  //   printf(green("scause %p\n"), scause);
+    // printf("sepc=%p stval=%p\n", read_csr(sepc), read_csr(stval));
   if((r_sstatus() & SSTATUS_SPP) != 0){
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", read_csr(sepc), read_csr(stval));

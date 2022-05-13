@@ -37,7 +37,9 @@ main(void)
       exit(1);
     }
     if(pid == 0){
+      // for(;;);
       exec("sh", argv);
+      // for(;;);
       printf("init: exec sh failed\n");
       exit(1);
     }
