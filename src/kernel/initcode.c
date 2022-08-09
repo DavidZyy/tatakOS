@@ -5,6 +5,8 @@ void printf(const char *fmt, ...);
 
 __attribute__((section(".startup"))) 
 void main() {
+    mkdirat(-100, "tmp");
+    mkdirat(-100, "proc");
     memuse();
     int status;
     char *argv[4];
@@ -13,9 +15,11 @@ void main() {
     argv[1] = "sh";
     // argv[1] = "var";
     // argv[2] = "var";
-    argv[2] = "busybox_testcode.sh";
+    // argv[2] = "busybox_testcode.sh";
+    // argv[2] = "lua_testcode.sh";
+    // argv[2] = "run-static.sh";
     // argv[2] = "-lh";
-    // argv[2] = 0;
+    argv[2] = 0;
     argv[3] = 0;
     
     // argv[2] = 0;
@@ -40,8 +44,8 @@ void main() {
 
 
 
-// // #include "usys.h"
-// // #include "stdarg.h"
+// #include "usys.h"
+// #include "stdarg.h"
 // #include "fs/fcntl.h"
 
 // void printf(const char *fmt, ...);
@@ -111,8 +115,7 @@ void main() {
 //   while(read_test_name() != -1) {
 //     i++;
 //     // filters //
-//     // if(!COND) continue;
-//     if(strncmp(proc_name, "scanf_long", 10) == 0) continue;
+//     if(!COND) continue;
 
 //     printf("\nReady To Run Test-%d %s\n", i, proc_name);
 //     int npid = fork();
