@@ -30,6 +30,15 @@ struct pte_chain {
 
 typedef struct pte_chain pte_chain_t;
 
+static inline pte_addr_t ptep_to_paddr(pte_t *ptep)
+{
+	return (pte_addr_t)ptep;
+}
+
+
+void page_add_rmap(page_t *page, pte_t *ptep);
+void page_remove_rmap(page_t *page, pte_t *ptep);
+
 #endif	/* _LINUX_RMAP_H */
 
 #endif

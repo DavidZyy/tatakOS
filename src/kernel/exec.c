@@ -193,6 +193,8 @@ int exec(char *path, char **argv, char **envp) {
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
+    /* 建立好了，通过do_filemap_pages缺页异常来读，而不是do_anonymous_page，这样不
+      全部把程序加载到内存中而执行，可以执行大于内存的程序 */
     if(do_mmap(newmm, NULL, 0, ph.vaddr, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
       goto bad;
     if(loadseg(newmm, ph.vaddr, ep, ph.off, ph.filesz) < 0)

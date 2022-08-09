@@ -63,6 +63,15 @@ pte_chain_encode(struct pte_chain *pte_chain, int idx)
 }
 
 /**
+ * __pte_chain_free - free pte_chain structure
+ * @pte_chain: pte_chain struct to free
+ */
+void __pte_chain_free(struct pte_chain *pte_chain)
+{
+	kfree(pte_chain);
+}
+
+/**
  * page_referenced - test if the page was referenced
  * @page: the page to test
  *
@@ -210,8 +219,7 @@ out:
  * Add a new pte reverse mapping to a page.
  * The caller needs to hold the mm->page_table_lock.
  */
-void 
-page_add_rmap(page_t *page, pte_t *ptep) {
+void page_add_rmap(page_t *page, pte_t *ptep) {
 	pte_chain_t *cur_pte_chain;
 
 	pte_chain_lock(page);
@@ -270,6 +278,7 @@ out:
  * Caller needs to hold the mm->page_table_lock.
  */
 void page_remove_rmap(page_t *page, pte_t *ptep){
+	pte_addr_t pte_paddr = ptep_to_paddr(ptep);
 	pte_chain_t *pc;
 
 	pte_chain_lock(page);
@@ -277,7 +286,47 @@ void page_remove_rmap(page_t *page, pte_t *ptep){
 	if(!page_mmaped(page))
 		goto out_unlock;
 
-	ERROR();
+	if(PageDirect(page)){
+		if(page->pte.direct == pte_paddr){
+			page->pte.direct = 0;
+			ClearPageDirect(page);
+			goto out;
+		}
+	}
+	else{
+		pte_chain_t *start = page->pte.chain;
+		pte_chain_t *next;
+		int victim_i = -1;
+
+		for(pc = start; pc; pc = next){
+			int i;
+			
+			next = pte_chain_next(pc);
+
+			/* i不能直接从0开始，因为是从NRPTE往前倒着放的，所以第一个chain可能没有放满(新申请的chain放在最前面，见page_add_rmap) */
+			for(i = pte_chain_idx(pc); i < NRPTE; i++){
+				pte_addr_t pa = pc->ptes[i];
+
+				if(victim_i == -1)
+					victim_i = i;
+				if(pa != pte_paddr)
+					continue;
+				pc->ptes[i] = start->ptes[victim_i];
+				start->ptes[victim_i] = 0;
+
+				if(victim_i == NRPTE-1){
+					/* free the start chain */
+					page->pte.chain = pte_chain_next(start);
+					__pte_chain_free(start);
+				}
+				else{
+					start->next_and_idx++;
+				}
+				goto out;
+			}
+		}
+	}
+
 out:
 	if (!page_mapped(page))
 		dec_page_state(nr_mapped);
