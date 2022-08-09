@@ -30,10 +30,23 @@
  * @param index the index of page in the file
  * @return int 
  */
-int rw_one_page(entry_t *entry, uint64 buff, uint32 index, int rw){
-  bio_t *bio = get_rw_pages_bio(entry, buff, index, 1, rw);
+int rw_one_page(entry_t *entry, page_t *page, uint32 index, int rw){
+  bio_t *bio;
+  uint64_t buff = PAGETOPA(page);
+
+  if(rw == WRITE){
+    if(TestSetPageWriteback(page))
+      ER();
+  }
+
+  bio = get_rw_pages_bio(entry, buff, index, 1, rw);
   if(bio)
     submit_bio(bio);
+  
+  if(rw == WRITE){
+    if(!TestClearPageWriteback(page))
+      ER();
+  }
   
   return 0;
 }
@@ -146,13 +159,26 @@ bio_t *get_rw_pages_bio(entry_t *entry, uint64 buff, uint32 pg_id, int pg_cnt, i
   return bio;
 }
 
-void free_rw_page_list(rw_page_list_t *pg_list){
-  rw_page_t *pg = pg_list->head;
-  while(pg){
-    rw_page_t *tmp = pg->next;
-    kfree((void*)pg);
-    pg = tmp;
+/**
+ * 清除对应页的writeback位，释放数据结构
+ */
+void free_rw_page_list(rw_page_list_t *pg_list, int rw){
+  rw_page_t *rw_page;
+
+  for(rw_page = pg_list->head; rw_page; rw_page = rw_page->next){
+    if(rw == WRITE){
+      if(!TestClearPageWriteback(PATOPAGE(rw_page->pa)))
+        ER();
+    }
+    kfree((void*)rw_page);
   }
+
+  // rw_page_t *pg = pg_list->head;
+  // while(pg){
+  //   rw_page_t *tmp = pg->next;
+  //   kfree((void*)pg);
+  //   pg = tmp;
+  // }
   kfree(pg_list);
 }
 
@@ -243,6 +269,13 @@ int rw_pages(entry_t *entry, rw_page_list_t *pg_list, int rw){
   rw_page_t *cur_page, *next_page;
   uint32_t nr_continuous_pages;
 
+  if(rw == WRITE){
+    rw_page_t *rw_page;
+    for(rw_page = pg_list->head; rw_page; rw_page = rw_page->next){
+      if(TestSetPageWriteback(PATOPAGE(rw_page->pa)))
+        ER();
+    }
+  }
   /** 
    * 合并pg_id连续的页, 一批连续的页调用一次get_sectors, 这样可以使得得到的一个bio_vec
    * 包含的sectors尽可能多。因为在lookup_tag递归查询时，是按照页index递增的顺序查询的，所以
@@ -283,7 +316,7 @@ int rw_pages(entry_t *entry, rw_page_list_t *pg_list, int rw){
   }
 
   /* 这里别忘了释放pghead相关的结构体！ */
-  free_rw_page_list(pg_list);
+  free_rw_page_list(pg_list, rw);
   // pages_be_found_t *pg = pg_list->head;
   // while(pg){
   //   pages_be_found_t *tmp = pg->next;

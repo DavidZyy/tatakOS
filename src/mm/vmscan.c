@@ -96,7 +96,7 @@ static void pageout(page_t *page, struct address_space *mapping)
 	entry_t *entry = mapping->host;
 
 	sych_entry_size_in_disk(entry);
-	write_one_page(entry, PAGETOPA(page), page->index);
+	write_one_page(entry, page, page->index);
 }
 
 /*
@@ -134,8 +134,8 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		// if (page_mapped(page) || PageSwapCache(page))
 		// 	sc->nr_scanned++;
 
-		// if (PageWriteback(page))
-			// goto keep_locked;
+		if (PageWriteback(page))
+			goto keep_locked;
 
     // todo("add bit lock");
     // pte_chain_lock(page);

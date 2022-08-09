@@ -370,7 +370,7 @@ retry:
         page = PATOPAGE(pa);
 
         get_page(page);
-        read_one_page(entry, pa, index);
+        read_one_page(entry, page, index);
 
         /* 添加到page cache */
         add_to_page_cache(page, mapping, index);
@@ -434,7 +434,7 @@ uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint6
       /* 整个页都要重新写过的，就没必要从磁盘中读了；或者要写的文件偏移大于文件在磁盘上的大小，也没必要读磁盘  */
       if(!(pg_off == 0 && rest >= PGSIZE))
         if(pg_id < pgnums_in_disk)
-          read_one_page(entry, pa, pg_id);
+          read_one_page(entry, page, pg_id);
       add_to_page_cache(page, mapping, pg_id);
       lru_cache_add(page);
     }
@@ -493,7 +493,7 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
 
     get_page(page);
     entry_t *entry = mapping->host;
-    read_one_page(entry, pa, pgoff);
+    read_one_page(entry, page, pgoff);
     add_to_page_cache(page, mapping, pgoff);
     lru_cache_add(page);
   }

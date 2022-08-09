@@ -2,7 +2,6 @@
 #ifndef _LINUX_RMAP_H
 #define _LINUX_RMAP_H
 
-#include "spinlock.h"
 #include "list.h"
 #include "types.h"
 #include "config.h"
@@ -10,7 +9,7 @@
 #ifdef RMAP
 /* 参考了linux 2.6.0的reverse mappping方案，这个方案感觉十分占用内存 */
 
-#define NRPTE 2^2-1
+#define NRPTE 4-1
 
 /*
  * next_and_idx encodes both the address of the next pte_chain and the
