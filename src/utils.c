@@ -8,6 +8,7 @@
 #include "bio.h"
 
 #include "radix-tree.h"
+// #include "rmap.h"
 // #include "mm/mm.h"
 
 
@@ -197,12 +198,18 @@ void print_argv(char **argv){
   }
 }
 
+#ifdef RMAP
+extern void print_page_rmap(page_t *page);
+#endif
 /**
  * 打印页信息
  */
 void print_page_info(page_t *page){
   printf("refcnt: %d\tpgnum: %d\taddr: 0x%x\tflags: 0x%x\tpg_pointer: 0x%x\n", 
   page->refcnt, page-pages, NUM2PAGE(page-pages), page->flags, page);
+#ifdef RMAP
+  print_page_rmap(page);
+#endif
 }
 
 /**

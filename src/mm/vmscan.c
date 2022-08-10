@@ -137,8 +137,9 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		if (PageWriteback(page))
 			goto keep_locked;
 
+#ifdef RMAP
     // todo("add bit lock");
-    // pte_chain_lock(page);
+    pte_chain_lock(page);
     // referenced = page_referenced(page);
 		// /* In active use or really unfreeable?  Activate it. */
 		// if (referenced && page_mapping_inuse(page)){
@@ -151,10 +152,11 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		 * processes. Try to unmap it here.
 		 * 映射到用户页表的页（目前只考虑mmap），先解映射
 		 */
-		// if (page_mapped(page)) {
-		// 	try_to_unmap(page);
-		// }
-		// pte_chain_unlock(page);
+		if (page_mapped(page) && mapping) {
+			try_to_unmap(page);
+		}
+		pte_chain_unlock(page);
+#endif
 
 		/* 写回dirty页 */
 		if(PageDirty(page)){
@@ -183,6 +185,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		 */
 		if(PageLRU(page))
 			ER();
+		/* kfree页 */
 		put_page(page);
 		continue;
 
@@ -521,6 +524,9 @@ void free_more_memory(void)
   /* 启动bdflush写回 */
 	/* 是否会出现两个线程写回一个页的情况？ */
 	// wakeup_bdflush(1024);
+	#ifdef TODO
+	todo("before free pages, write back some entry, and free");
+	#endif
 	// yield();
  extern entry_t pool[NENTRY];
  needpool(pool);

@@ -67,8 +67,12 @@ zero: We don't use bit 39 so that bits 63-40 must be same with bit 39(zero).
 #define PTE_W (1L << 2)
 #define PTE_X (1L << 3)
 #define PTE_U (1L << 4) // 1 -> user can access
+#define PTE_G (1L << 5) 
+#define PTE_A (1L << 6) 
+#define PTE_D (1L << 7) 
 #define PTE_COW (1L << 8) // cow
 
+#define pte_dirty(pte) pte & PTE_D
 #include "platform.h"
 
 // use typedef to make type flexible.

@@ -11,6 +11,7 @@
 #define __MODULE_NAME__ PAGEFAULT
 
 #include "debug.h"
+#include "mm/rmap.h"
 
 extern char cp_start;
 extern char cp_end;
@@ -36,6 +37,15 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
     flag &= ~PTE_COW;
 
     *pte = PA2PTE(mem) | flag;
+#ifdef RMAP
+    /* 给用户空间的映射建立rmap */
+    if(va < USERSPACE_END){
+        /* 建立新的rmap */
+        page_add_rmap(PATOPAGE(mem), pte);
+        /* 移除旧的rmap */
+        page_remove_rmap(PATOPAGE(pa), pte);
+    }
+#endif
 
     /* 引用数-1 */
     kfree((void *)pa);
@@ -174,10 +184,13 @@ static int do_filemap_page(pte_t *pte, vma_t *vma, uint64_t address){
     return filemap_nopage(pte, vma, address);
 }
 
+#ifdef RMAP
+#ifdef SWAP 
 static int do_swap_page(){
-    ER();
     return 1;
 }
+#endif
+#endif
 
 /**
  * lazy allocation
@@ -187,6 +200,11 @@ static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
 
     *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
 
+#ifdef RMAP
+    /* 给用户空间的映射建立rmap */
+    if(address < USERSPACE_END)
+      page_add_rmap(PATOPAGE(newpage), pte);
+#endif
     /* 本来就为0，是否有必要？ */
     sfence_vma_addr(address);
     return 1;
@@ -216,7 +234,11 @@ int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
             /* lazy allocation */
             return do_anonymous_page(pte, vma, rva);
         }
+#ifdef RMAP
+#ifdef SWAP 
         return do_swap_page();
+#endif
+#endif
     }
 
     /* cow, 类型为store， 并且write位为0 */

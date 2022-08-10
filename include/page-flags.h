@@ -80,10 +80,10 @@ struct page_state {
 typedef struct page_state page_state_t;
 
 #define read_page_state(member) \
-	__read_page_state(offsetof(struct page_state, member))
+	// __read_page_state(offsetof(struct page_state, member))
 
 #define mod_page_state(member, delta)	\
-	__mod_page_state(offsetof(struct page_state, member), (delta))
+	// __mod_page_state(offsetof(struct page_state, member), (delta))
 
 #define inc_page_state(member)	mod_page_state(member, 1UL)
 #define dec_page_state(member)	mod_page_state(member, 0UL - 1)

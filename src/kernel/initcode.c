@@ -1,6 +1,7 @@
 #include "usys.h"
 #include "stdarg.h"
 
+void run(char *argv[]); 
 void printf(const char *fmt, ...);
 
 __attribute__((section(".startup"))) 
@@ -8,22 +9,21 @@ void main() {
     mkdirat(-100, "tmp");
     mkdirat(-100, "proc");
     memuse();
-    int status;
-    char *argv[4];
-    argv[0] = "busybox";
-    // argv[1] = "du";
-    argv[1] = "sh";
-    // argv[1] = "var";
-    // argv[2] = "var";
-    // argv[2] = "busybox_testcode.sh";
-    // argv[2] = "lua_testcode.sh";
-    // argv[2] = "run-static.sh";
-    // argv[2] = "-lh";
-    argv[2] = 0;
-    argv[3] = 0;
     
-    // argv[2] = 0;
+    char *sh[] = {"busybox", "sh", 0};
+    run(sh);
+    // char *busybox[] = {"busybox", "sh", "busybox_testcode.sh", -1};
+    char *lua[] = {"busybox", "sh", "lua_testcode.sh", 0};
+    // run(busybox);
+    run(lua);
+    
+    memuse();
+    halt();
+    for(;;);
+}
 
+// void run(char *argv[]) {
+void run(char *argv[]) {
     int npid = fork();
     if(npid < 0) {
         printf("fork failed");
@@ -33,13 +33,11 @@ void main() {
         int ret = exec(argv[0], argv);
         printf("exec fail with %d\n", ret);
     } else {          // 父进程
+        // int status;
+        int status;
         wait(&status);
         printf("child exit with %d\n", status);
     }
-    
-    memuse();
-    halt();
-    for(;;);
 }
 
 

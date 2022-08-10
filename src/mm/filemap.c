@@ -14,6 +14,7 @@
 #include "fs/mpage.h"
 #include "swap.h"
 #include "config.h"
+#include "mm/rmap.h"
 /**
  * 定义了关于file map相关的函数，函数声明在fs.h
  *
@@ -508,15 +509,20 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
    */
   if(area->flags & MAP_PRIVATE){
     uint64_t pa0 = (uint64_t)kalloc();
+#ifdef RMAP
 #ifdef SWAP
     /* 页替换算法需要用到swap */
     page_t *page0 = PAGETOPA(pa0);
     lru_cache_add(page0);
     mark_page_accessed(page0);
 #endif
+#endif
     memcpy((void *)pa0, (void *)pa, PGSIZE);
     *pte = PA2PTE(pa0) | riscv_map_prot(area->prot) | PTE_V;
     sfence_vma_addr(address);
+#ifdef RMAP
+    pa = pa0;
+#endif
   }
   else if(area->flags & MAP_SHARED){
     /* shared */
@@ -528,6 +534,14 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
     del_page_from_lru(&memory_zone, page);
 #endif
   }
+
+#ifdef RMAP
+    /* MMAP_BASE不在用户空间中 */
+    if(address > MMAP_BASE)
+      page_add_rmap(PATOPAGE(pa), pte);
+    else
+      ER();
+#endif
 
   return 0; 
 }

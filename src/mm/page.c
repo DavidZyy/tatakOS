@@ -15,6 +15,8 @@
 #include "utils.h"
 #include "page-flags.h"
 #include "list.h"
+#include "config.h"
+#include "mm/rmap.h"
 
 page_t pages[PAGE_NUMS];
 struct spinlock reflock;
@@ -117,6 +119,11 @@ _mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int prot, in
     if(*pte & PTE_V)
       panic("mappages: remap");
     *pte = PA2PTE_SPEC(pa, spec) | prot | PTE_V;
+#ifdef RMAP
+    /* 给用户空间的映射建立rmap */
+    if(a < USERSPACE_END)
+      page_add_rmap(PATOPAGE(pa), pte);
+#endif
     if(a == last)
       break;
     a += PGSIZE_SPEC(spec);
@@ -139,6 +146,7 @@ _uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int spec
   uint64 a;
   pte_t *pte;
   int pgsize = PGSIZE_SPEC(spec);
+  uint64_t pa;
 
   if((va % pgsize) != 0)
     panic("uvmunmap: not aligned");
@@ -154,10 +162,14 @@ _uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int spec
     if((*pte & (PTE_R | PTE_W | PTE_X)) == 0)
       panic("uvmunmap: not a leaf");
     if(do_free){
-      uint64 pa = PTE2PA(*pte);
+      pa = PTE2PA(*pte);
       kfree((void*)pa);
     }
     *pte = 0;
+#ifdef RMAP
+    if(a < USERSPACE_END)
+      page_remove_rmap(PATOPAGE(pa), pte);
+#endif
     sfence_vma_addr(a);
   }
 }
