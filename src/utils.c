@@ -218,20 +218,25 @@ void print_page_info(page_t *page){
  */
 extern char end[];
 void print_not_freed_pages() {
-  // int pgnum;
-  // uint64_t p;
-
   printf(rd("pages not be freed:\n"));
-  // for(p = (uint64_t)end; p < MEM_END; p += PGSIZE){
-    // pgnum = PAGE2NUM(p);
-    // if(pages[pgnum].refcnt > 0)
-      // printf("pgnum: %d\taddr: %p\n", pgnum, p);
-  // }
   for(int i = 0; i < PAGE_NUMS; i++){
     if(page_refcnt(&pages[i]) > 0)
       print_page_info(&pages[i]);
   }
 }
+
+/**
+ * 打印出map数大于0的rmap。
+ */
+#ifdef RMAP
+void print_mapped_pages(){
+  printf(rd("pages be mapped:\n"));
+  for(int i = 0; i < PAGE_NUMS; i++){
+    if(page_mapcnt(&pages[i]) > 0) 
+      print_page_info(&pages[i]);
+  } 
+}
+#endif
 
 
 void debug_pages(uint64_t imapping) {

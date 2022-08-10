@@ -40,10 +40,14 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
 #ifdef RMAP
     /* 给用户空间的映射建立rmap */
     if(va < USERSPACE_END){
+        page_t *page = PATOPAGE(mem);
         /* 建立新的rmap */
-        page_add_rmap(PATOPAGE(mem), pte);
+        page_add_rmap(page, pte);
+        atomic_inc(&page->mapcount);
         /* 移除旧的rmap */
-        page_remove_rmap(PATOPAGE(pa), pte);
+        page = PATOPAGE(pa);
+        page_remove_rmap(page, pte);
+        atomic_dec(&page->mapcount);
     }
 #endif
 
@@ -202,8 +206,12 @@ static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
 
 #ifdef RMAP
     /* 给用户空间的映射建立rmap */
-    if(address < USERSPACE_END)
-      page_add_rmap(PATOPAGE(newpage), pte);
+    if(address < USERSPACE_END){
+        page_t *page = PATOPAGE(newpage);
+
+        page_add_rmap(page, pte);
+        atomic_inc(&page->mapcount);
+    }
 #endif
     /* 本来就为0，是否有必要？ */
     sfence_vma_addr(address);

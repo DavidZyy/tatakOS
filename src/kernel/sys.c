@@ -140,10 +140,32 @@ uint64_t sys_philosophy(void) {
   return 0;
 }
 
+/* 所有引用数大于0的页 */
+#define ALL_REFERED_PAGES 1
+/* 所有映射数大于0的页 */
+#define ALL_MAPPED_PAGES 2
+
+void print_not_freed_pages(); 
+void print_mapped_pages();
+
 uint64_t sys_memuse(void) {
+  int op;
+  if(argint(0, &op) < 0)
+    ER();
+  
   buddy_print_free();
-  print_buddy();
-  // print_zone_list_info(&memory_zone);
+
+  printf("op: %d", op);
+  if(op == ALL_REFERED_PAGES){
+    print_not_freed_pages(); 
+  }
+  else if(op == ALL_MAPPED_PAGES){
+#ifdef RMAP
+    print_mapped_pages();
+#else
+    printf(ylw("Rmap moudle is not be applied, turn on it in config.h.\n"));
+#endif
+  }
   return 0;
 }
 

@@ -537,8 +537,12 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
 
 #ifdef RMAP
     /* MMAP_BASE不在用户空间中 */
-    if(address > MMAP_BASE)
-      page_add_rmap(PATOPAGE(pa), pte);
+    if(address > MMAP_BASE){
+      page_t *page = PATOPAGE(pa);
+
+      page_add_rmap(page, pte);
+      atomic_inc(&page->mapcount);
+    }
     else
       ER();
 #endif

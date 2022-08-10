@@ -99,12 +99,19 @@ typedef struct _page_t {
     uint32_t index;
 
 #ifdef RMAP
+  /** Count of ptes mapped in mms,
+	* to show when page is mapped
+	* & limit reverse map searches.
+    * 在页表中map的数量。
+    */
+    atomic_t mapcount;
     union {
 		struct pte_chain *chain;/* Reverse pte mapping pointer.
 					 * protected by PG_chainlock */
 		pte_addr_t direct;
 	} pte;
 #endif
+
 } page_t;
 
 /* 页的数量 */
@@ -185,6 +192,11 @@ static inline int page_mapped(page_t *page)
 {
     return page->pte.direct != 0;
 }
+
+static inline int page_mapcnt(page_t *page){
+    return page->mapcount.counter;
+}
+
 #endif
 /* mmzone.h */
 struct zone{
