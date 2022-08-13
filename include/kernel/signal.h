@@ -148,7 +148,6 @@ typedef struct __ucontext
 } ucontext_t;
 
 
-
 signal_t *sig_new();
 void sig_free(signal_t **pself);
 signal_t *sig_clone(signal_t *self);
@@ -158,5 +157,6 @@ sigaction_t *sig_getaction(signal_t *self, int signum);
 void sig_setaction(signal_t *self, int signum, sigaction_t *act, sigaction_t *old);
 
 void sig_handle(signal_t *self);
+void sig_reset(signal_t *self);
 
 #endif

@@ -1,5 +1,5 @@
-#include "common.h"
 #include "platform.h"
+#include "common.h"
 #include "mm/alloc.h"
 #include "fs/fs.h"
 #include "fs/file.h"
@@ -52,7 +52,7 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
 #endif
 
     /* 引用数-1 */
-    kfree((void *)pa);
+    put_page(pa);
   }
   // IMPORTANT! Flush TLB
   sfence_vma_addr(va);
@@ -60,23 +60,6 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
   return 0;
 }
 
-
-// static inline void file_copy(uint64_t va, uint64_t pa, vma_t *vma) {
-//     // TODO: check file range
-//     uint64_t len = PGSIZE;
-//     off_t off = vma->offset;
-//     struct file *fp = vma->map_file;
-//     if(va == vma->addr) {
-//         uint64_t delta = vma->raddr - vma->addr;
-//         pa = pa + delta;
-//         len = len - delta;
-//     } else {
-//         off += va - vma->raddr;
-//     }
-//     elock(fp->ep);
-//     reade(fp->ep, 0, pa, off, len);
-//     eunlock(fp->ep);
-// }
 
 typedef enum {
     PF_LOAD,
@@ -91,6 +74,7 @@ static pagefault_t get_pagefault(uint64 scause) {
     // 在特权级1.9下，由于没有pagefault(ref: p51)，因此SBI帮我在底层做了一下转换
     // 对于缺页的错误，它将非缺页以及非PMP访问的异常都归结到了xx_access_fault中，因此这里需要加一层宏判断
     // 这似乎违背了SBI的宗旨
+    // printf("%s\n", riscv_cause2str(scause));
     switch (scause)
     {
         // #if PRIVILEGE_VERSION == PRIVILEGE_VERSION_1_12
@@ -104,73 +88,6 @@ static pagefault_t get_pagefault(uint64 scause) {
     }
 }
 #include "mm/buddy.h"
-
-// /**
-//  * @return 处理失败返回-1，成功返回1
-//  */
-// int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
-//     if(fault == PF_STORE) { // store page fault
-//         if(vma->prot & PROT_WRITE) {
-//             pte_t *pte = walk(p->mm->pagetable, rva, 1);
-//             // lazy
-//             if((*pte & PTE_V) == 0) {
-//                 uint64_t newpage = (uint64)kzalloc(PGSIZE);
-
-//                 if(newpage == 0) {
-//                     debug("map fault");
-//                     return -1;
-//                 }
-//                 // load file content
-//                 if(vma->map_file) {
-//                     file_copy(rva, newpage, vma);
-//                 }
-
-//                 *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
-//                 sfence_vma_addr(rva);
-                
-//                 return 0;
-//             }
-//             // cow
-//             if(*pte & PTE_COW) {
-//                 if(cow_copy(rva, pte) == -1){
-//                     debug("cow fault");
-//                     return -1;
-//                 } else {
-//                     return 0;
-//                 }
-//             }
-
-//             panic("here?");
-//         } else {
-//             debug("no write prot");
-//             return -1;
-//         }
-//     }
-    
-//     if(fault == PF_LOAD) { 
-//         if(vma->prot & PROT_READ) {
-//             pte_t *pte = walk(p->mm->pagetable, rva, 1);
-//             // lazy
-//             if((*pte & PTE_V) == 0) {
-//                 uint64_t newpage = (uint64)kzalloc(PGSIZE);
-//                 if(newpage == 0) {
-//                     return -1;
-//                 }
-//                 // load file content
-//                 if(vma->map_file) {
-//                     file_copy(rva, newpage, vma);
-//                 }
-//                 *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
-//                 sfence_vma_addr(rva);
-//                 return 0;
-//             }
-//         } else {
-//             return -1;
-//         }
-//     }
-
-//     return -1;
-// }
 
 static int have_prot(pagefault_t fault, vma_t *vma){
     if(fault == PF_STORE){
@@ -227,7 +144,11 @@ static int do_cow_page(uint64_t address, pte_t *pte){
  */
 int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
     if(!have_prot(fault, vma)){
-        ERROR("have no prot");
+        // ERROR("have no prot");
+        if(p->signaling)
+            ER();
+        sig_send(p, SIGSEGV);
+        return 1;
     }
     pte_t *pte, entry;
 
@@ -254,6 +175,8 @@ int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
         return do_cow_page(rva, pte);
 
     /* 未知页错误 */
+    printf("pf: va is %#lx\n", rva);
+    pte_print(pte);
     ER();
     return -1;
 }
@@ -265,7 +188,9 @@ int handle_pagefault(uint64_t scause) {
     int ktrap = r_sstatus() & SSTATUS_SPP;
     proc_t *p = myproc();
     uint64_t epc = read_csr(sepc);
-    uint64_t rva = PGROUNDDOWN(read_csr(stval));
+    uint64_t stval = read_csr(stval);
+    // uint64_t rva = PGROUNDDOWN(read_csr(stval));
+    uint64_t rva = PGROUNDDOWN(stval);
     vma_t *vma = NULL;
 
     pagefault_t fault = get_pagefault(scause);
@@ -331,7 +256,6 @@ int handle_pagefault(uint64_t scause) {
 
     kernel_fail:
     info("[Kernel] "rd("%s")" PID %d: epc %#lx va %#lx", riscv_cause2str(scause), p->pid, read_csr(sepc), read_csr(stval));
-    
     panic("pagefault handle fault");
     user_fail:
     info("[User] "rd("%s")" PID %d: epc %#lx va %#lx", riscv_cause2str(scause), p->pid, read_csr(sepc), read_csr(stval));

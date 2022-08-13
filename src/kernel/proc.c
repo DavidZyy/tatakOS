@@ -15,6 +15,7 @@
 #include "fs/fs.h"
 #include "fs/file.h"
 
+#define QUIET
 #define __MODULE_NAME__ PROC
 #include "debug.h"
 
@@ -256,7 +257,8 @@ userinit(void)
   
   // debug("initcode size: %d", sizeof(initcode));
 
-  if(do_mmap_alloc(p->mm, PGSIZE, PGSIZE + USER_SIZE, 0, PROT_WRITE|PROT_READ|PROT_EXEC|PROT_USER) == -1) {
+  // if(do_mmap_alloc(p->mm, 0, USER_SIZE, 0, PROT_WRITE|PROT_READ|PROT_EXEC|PROT_USER) == -1) {
+  if(do_mmap_alloc(p->mm, PGSIZE, USER_SIZE, 0, PROT_WRITE|PROT_READ|PROT_EXEC|PROT_USER) == -1) {
     panic("mmap1 failure");
   }
 
@@ -266,9 +268,11 @@ userinit(void)
 
   enable_sum();
   memmove((void *)PGSIZE, initcode, sizeof(initcode));
+  // memmove((void *)0, initcode, sizeof(initcode));
   disable_sum();
 
   // prepare for the very first "return" from kernel to user.
+  // proc_get_tf(p)->epc = 0;      // user program counter
   proc_get_tf(p)->epc = PGSIZE;      // user program counter
   proc_get_tf(p)->sp = USERSPACE_END;  // user stack pointer
 
@@ -449,7 +453,7 @@ void exit(int status) {
     panic("init exiting");
   }
 
-  debug("PID %d EXIT", p->pid);
+  debug("PID %d EXIT %d", p->pid, status);
 
   if(thrdcnt == 0) {
     fdtbl_closeall(p->fdtable);
@@ -470,6 +474,7 @@ void exit(int status) {
   // Parent might be sleeping in wait().
   if(thrdcnt == 0) {
     wakeup(p->parent);
+    sig_send(p->parent, SIGCHLD);
   }
   
   acquire(&p->lock);
@@ -491,8 +496,38 @@ void exit(int status) {
   panic("zombie exit");
 }
 
+void sig_send(proc_t *p, int signum) {
+    acquire(&p->lock);
+    p->sig_pending |= (1L << (signum - 1));
+    if(p->state == SLEEPING)
+      p->state = RUNNABLE;
+    release(&p->lock);
+}
+
     
 extern void lru_add_drain();
+
+int freechild() {
+  proc_t *p = myproc();
+  proc_t *np;
+  int cnt = 0;
+  for(np = proc; np < &proc[NPROC]; np++) {
+    if(np->parent == p){
+      // make sure the child isn't still in exit() or swtch().
+      acquire(&np->lock);
+      if(np->state == ZOMBIE){
+        // Found one.
+        /* 进程退出的时候，有些页还在pagevec中，没有释放，看上去好像内存泄露了，所以这里加上这句。 */
+        // lru_add_drain();
+        freeproc(np);
+        // release(&np->lock);
+        cnt++;
+      }
+      release(&np->lock);
+    }
+  }
+  return cnt;
+}
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
@@ -506,8 +541,8 @@ waitpid(int cid, uint64 addr, int options)
 
   for(;;){
     // Scan through table looking for exited children.
-    havekids = 0;
-    haveckid = 0;
+    havekids = 0; // 表示子进程存在
+    haveckid = 0; // 表示指定的cid存在
     for(np = proc; np < &proc[NPROC]; np++){
       if(np->parent == p){
         // make sure the child isn't still in exit() or swtch().
@@ -692,7 +727,7 @@ sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
   
-  sig_handle(p->signal);
+  // sig_handle(p->signal);
   // Must acquire p->lock in order to
   // change p->state and then call sched.
   // Once we hold p->lock, we can be
@@ -720,6 +755,8 @@ sleep(void *chan, struct spinlock *lk)
 
   // Reacquire original lock.
   release(&p->lock);
+
+  // sig_handle(p->signal);
 
   if(lk != NULL)
     acquire(lk);
@@ -801,6 +838,8 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 int
 either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
+  if(unlikely(len == 0)) 
+    return 0;
   if(user_src){
     return copyin(dst, src, len);
   } else {
@@ -822,11 +861,11 @@ void
 procdump(void)
 {
   static char *states[] = {
-  [UNUSED]    "unused",
-  [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
+  [UNUSED]    "UNUSED   ",
+  [SLEEPING]  "SLEEPING ",
+  [RUNNABLE]  "RUNNABLE ",
+  [RUNNING]   "RUNNING  ",
+  [ZOMBIE]    "ZOMBIE   ",
   };
   struct proc *p;
   char *state;

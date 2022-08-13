@@ -18,7 +18,7 @@
 #include "mm/io.h"
 #include "common.h"
 
-// #define QUIET
+#define QUIET
 #define __MODULE_NAME__ SYS_FILE
 #include "debug.h"
 #include "utils.h"
@@ -327,7 +327,7 @@ uint64 sys_getcwd(void) {
 
 
 uint64_t sys_faccessat(void) {
-    return -1;
+    return 0;
 }
 
 uint64_t sys_mount(void) {
@@ -455,8 +455,7 @@ uint64 sys_openat(void) {
         }
     } else {
         if ((ep = namee(from, path)) == 0) {
-            debug("file not found, cwd is %s", p->cwd->name);
-            debug("path %s omode %o", path, omode);
+            debug("file not found, cwd is %s, path is %s, omode is %o", p->cwd->name, path, omode);
             return -1;
         }
 
@@ -479,7 +478,7 @@ uint64 sys_openat(void) {
     f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
     f->type = FD_ENTRY;
     if(omode & O_APPEND)
-        f->off = ep->raw.size;
+        f->off = E_FILESIZE(ep);
     else
         f->off = 0;
     // if((omode & O_TRUNC) && E_ISFILE(ep)){ // todo:
@@ -549,7 +548,7 @@ uint64_t sys_readlinkat(void) {
     char path[MAXPATH];
     uint64_t bufaddr;
     size_t bufsz;
-    // entry_t *from;
+    entry_t *from, *ep;
     proc_t *p = myproc();
 
     int n;
@@ -562,10 +561,20 @@ uint64_t sys_readlinkat(void) {
         int len = min(end - path, bufsz);
         if(copy_to_user(bufaddr, path, len) < 0)
             return -1;
-    } else {
-        ER();
+        return 0;
+    } 
+
+    from = getep(p, dirfd);
+    if((ep = namee(from, path)) == NULL) {
+        return -1;
     }
-    
+    char *end = namepath(p->exe, path);
+    int len = min(end - path, bufsz);
+    if(copy_to_user(bufaddr, path, len) < 0)
+        return -1;
+
+    eput(ep);
+
     return 0;
 }
 
@@ -579,20 +588,18 @@ uint64_t sys_sendfile(void) {
       argaddr(2, &poff) < 0 || argaddr(3, (uint64_t *)&count) < 0)
         return -1;
     
-    if(poff) {
-        if(copy_from_user(&off, poff, sizeof(off_t)) < 0)
-            return -1;
-    }
+    if(poff && copy_from_user(&off, poff, sizeof(off_t)) < 0)
+        return -1;
 
     int ret;
     if((ret = filesend(inf, outf, poff ? &off : NULL, count)) < 0)
         return -1;
-    else {
-        if(copy_to_user(poff, &off, sizeof(off_t)) < 0)
-            return -1;
-        debug("len %ld rlen %ld", count, ret);
-        return ret;
-    }
+    
+    if(poff && copy_to_user(poff, &off, sizeof(off_t)) < 0)
+        return -1;
+
+    debug("len %ld rlen %ld", count, ret);
+    return ret;
 
 }
 
@@ -675,7 +682,9 @@ uint64 sys_exec(void) {
                     pwd,
                     "PS1=\\u"grn("\\w")"\\$ ",
                     "PATH=/",
-                    "ENOUGH=5000", "TIMING_O=7", "LOOP_O=0.00249936",
+                    "ENOUGH=3000", 
+                    "TIMING_O=7", 
+                    "LOOP_O=0",
                     NULL};
 
     int ret = exec(path, argv, envp);
@@ -822,8 +831,8 @@ uint64 sys_ioctl(void) {
             break;
         case TIOCGWINSZ:
             if (copy_to_user(arg0, &(struct winsize){
-                .ws_row = 0,
-                .ws_col = 0,
+                .ws_row = 20,
+                .ws_col = 100,
             }, sizeof(struct winsize)) < 0)
                 return -1;
             break;
@@ -831,7 +840,7 @@ uint64 sys_ioctl(void) {
         case 0xffffffff80247009:
             break;
         default:
-            panic("un");
+            return 0;
     }
     return 0;
 }
@@ -847,12 +856,17 @@ uint64 sys_lseek(void) {
 
     if(argfd(0, NULL, &f) < 0 || argaddr(1, (uint64 *)&offset) < 0 || argint(2, &whence) < 0)
         return -1;
+
+    if(f->type == FD_PIPE) {
+        return -ESPIPE;
+    }
+
     if(whence == SEEK_SET) {
         f->off = offset;
     } else if(whence == SEEK_CUR) {
         f->off += offset;
     } else if(whence == SEEK_END) {
-        f->off = E_FILESIZE(f->ep) + offset;
+        f->off = f->ep->size_in_mem + offset;
     } else {
         panic("unsupport whence");
     }
@@ -877,7 +891,9 @@ uint64 sys_mmap(void) {
 
     // debug("addr is %#lx len is %#lx flags is %b prot is %b fd is %d",addr, len, flags, prot, fd);
 
-    if((addr = do_mmap(p->mm, fp, offset, addr, len, flags, prot | PROT_USER | PROT_READ | PROT_WRITE | PROT_EXEC))== -1)  {
+    // if((addr = do_mmap(p->mm, fp, offset, addr, len, flags, prot | PROT_USER | PROT_READ | PROT_WRITE | PROT_EXEC))== -1)  {
+    
+    if((addr = do_mmap(p->mm, fp, offset, addr, len, flags, prot | PROT_USER))== -1) {
         debug("mmap failure");
         return -1;
     }
@@ -893,6 +909,10 @@ uint64 sys_munmap(void) {
     if(argaddr(0, &addr) < 0 || argaddr(1, &len) < 0) {
         return -1;
     }
+    /* 现在没有支持vma的分裂和合并，这里先判断一下，以防bug */
+    vma_t *vma = __vma_find_strict(p->mm, addr);
+    if(vma->len != len)
+        ER();
     // debug("UNMAP addr is %#lx len is %#lx", addr, len);
     // mmap_print(p->mm);
     do_unmap(p->mm, addr, 1);
@@ -1031,5 +1051,38 @@ sys_rename(void){
 
     }
 
+    return 0;
+}
+
+uint64_t sys_fsync(void){
+    int fd;
+    entry_t *ep;
+
+    if(argint(0, &fd) < 0)
+        return -1;
+
+    ep = getep(myproc(), fd);    
+
+    sych_entry_in_disk(ep);
+    return 0;
+}
+
+extern void msync(uint64_t addr, uint64_t length, int flags);
+
+/**
+ * addr 和length需要是PGSIZE的倍数吗？
+ */
+uint64_t
+sys_msync(void){
+    uint64_t addr, length;
+    int flags;
+
+    if(argaddr(0, &addr) < 0 ||
+        argaddr(1, &length) < 0 ||
+        argint(2, &flags) < 0)
+        return -1;
+
+    msync(addr, length, flags);
+    
     return 0;
 }

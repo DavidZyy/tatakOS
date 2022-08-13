@@ -57,7 +57,8 @@ struct dir_item;
 struct proc;
 struct zone;
 
-void backtrace(struct proc *p);
+
+void backtrace();
 void print_sbiret(sbiret_t ret);
 int  luaO_log2 (unsigned int x);
 void print_page(int pgnum);
@@ -77,6 +78,8 @@ void print_pages_be_found(struct pages_be_found_head *pg_head);
 
 #define todo(str)  TD(str, __FILE__, __func__, __LINE__)
 #define get_order(x) luaO_log2(x)
+
+#define abs(n) ((n)>=0?(n):-(n))
 
 
 #define grn(str) 	"\e[32;1m"str"\e[0m"

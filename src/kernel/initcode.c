@@ -4,26 +4,37 @@
 void run(char *argv[]); 
 void printf(const char *fmt, ...);
 
+void run(char *argv[]);
+
+#define shell(...) {char *__cmd[] = {"busybox", "sh", __VA_ARGS__};run(__cmd);}
+#define lua(...) {char *__cmd[] = {"lua", __VA_ARGS__};run(__cmd);}
+#define lmbench(...) {char *__cmd[] = {"lmbench_all", __VA_ARGS__};run(__cmd);}
+
+
 __attribute__((section(".startup"))) 
 void main() {
+
     mkdirat(-100, "tmp");
     mkdirat(-100, "proc");
-    memuse();
-    
-    char *sh[] = {"busybox", "sh", 0};
-    run(sh);
-    // char *busybox[] = {"busybox", "sh", "busybox_testcode.sh", -1};
-    char *lua[] = {"busybox", "sh", "lua_testcode.sh", 0};
-    // run(busybox);
-    run(lua);
-    
-    memuse();
-    halt();
-    for(;;);
-}
+    mkdirat(-100, "proc/mounts");
 
-// void run(char *argv[]) {
-void run(char *argv[]) {
+    memuse();
+    int status;
+    char *argv[4];
+    argv[0] = "busybox";
+    // argv[1] = "du";
+    argv[1] = "sh";
+    // argv[1] = "var";
+    // argv[2] = "var";
+    // argv[2] = "busybox_testcode.sh";
+    // argv[2] = "lua_testcode.sh";
+    // argv[2] = "run-static.sh";
+    // argv[2] = "-lh";
+    argv[2] = 0;
+    argv[3] = 0;
+    
+    // argv[2] = 0;
+
     int npid = fork();
     if(npid < 0) {
         printf("fork failed");
@@ -33,7 +44,6 @@ void run(char *argv[]) {
         int ret = exec(argv[0], argv);
         printf("exec fail with %d\n", ret);
     } else {          // 父进程
-        // int status;
         int status;
         wait(&status);
         printf("child exit with %d\n", status);

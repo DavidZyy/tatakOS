@@ -126,8 +126,10 @@ void __do_mmap(mm_t *mm, struct file *fp, off_t foff, uint64_t addr, uint64_t le
     vma->flags = flags;
     vma->map_file = fp;
     vma->prot = prot;
-    vma->offset = foff;
+    /* 存储的是page index */
+    vma->offset = foff >> PGSHIFT;
     vma_insert(mm, vma);
+    // printf(rd("%x\n"),vma->len);
 
 //   merge:
 //     // 经过上述处理完，找到的vma布局如下所示：
@@ -142,6 +144,7 @@ void __do_mmap(mm_t *mm, struct file *fp, off_t foff, uint64_t addr, uint64_t le
 //         vma->len = end - vma->addr;
 //     }
 //     return 0;
+    return;
 }
 
 
@@ -177,10 +180,14 @@ uint64_t do_mmap(mm_t *mm, struct file *fp, off_t off, uint64_t addr, uint64_t l
         // 对齐检查
         if(addr != addr_align) return -1;
         if(vma) {
+            // IMPROVE ME: 目前支持在存在的MMAP的后边界处做MAP_FIXED操作
             if(addr + len != PGROUNDUP(vma->addr + vma->len) || addr < vma->addr) {
+                // vma_print(vma);
+                // mmap_print(mm);
+                #ifdef DEBUG
                 vma_print(vma);
-                mmap_print(mm);
-                debug("fixed map must be mapped inner an existed map: addr %#lx len %#lx", addr, len);
+                #endif
+                debug("fixed map must be mapped inner an existed map: addr %#lx len %#lx prot %#b", addr, len, prot);
                 release(&mm->mm_lock);
                 return -1;
             }
@@ -366,14 +373,15 @@ int mmap_map_stack(mm_t *mm, uint64_t stacksize) {
     // if(do_mmap(mm, NULL, 0, brk_addr, heapsize, 0, PROT_READ|PROT_WRITE|PROT_EXEC|PROT_USER) == -1) {
     //     return -1;
     // }
+    mm->uheap = list_last_entry(&mm->vma_head, vma_t, head);
+
     if(do_mmap(mm, NULL, 0, USERSPACE_END - stacksize, stacksize, MAP_STACK, PROT_READ|PROT_WRITE|PROT_EXEC|PROT_USER) == -1) {
         // do_unmap(mm, brk_addr, 0);
         return -1;
     }
 
-    mm->uheap = list_last_entry(&mm->vma_head, vma_t, head);
     mm->ustack = __vma_find(mm, USERSPACE_END - stacksize);
-
+    assert(mm->uheap != mm->ustack);
     return 0;
 }
 

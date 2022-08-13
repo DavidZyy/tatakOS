@@ -41,38 +41,23 @@ void page_init(void) {
     pages[i].order = 0;
     pages[i].alloc = 1;
     reset_page(&pages[i]);
-    // pages[i].flags = 0;
-    // INIT_LIST_HEAD(&pages[i].lru);
-    // pages[i].pte.direct = 0;
-    // pages[i].mapping = 0;
-    // pages[i].index = 0;
   }
 }
 
-pgref_t ref_page(uint64_t pa) {
-  // pgref_t ret;
-  // acquire(&reflock);
-  // ret = ++pages[PAGE2NUM(pa)].refcnt;
-  // release(&reflock);
-  // return ret;
-  return atomic_inc(&pages[PAGE2NUM(pa)].refcnt);
-}
+// pgref_t ref_page(uint64_t pa) {
+//   // pgref_t ret;
+//   // acquire(&reflock);
+//   // ret = ++pages[PAGE2NUM(pa)].refcnt;
+//   // release(&reflock);
+//   // return ret;
+//   return atomic_inc(&pages[PAGE2NUM(pa)].refcnt);
+// }
 
-pgref_t deref_page(uint64_t pa) {
-  // pgref_t ret;
-  // acquire(&reflock);
-  // ret = --pages[PAGE2NUM(pa)].refcnt;
-  // release(&reflock);
-  return atomic_dec(&pages[PAGE2NUM(pa)].refcnt);
-}
+
 
 // pgref_t page_ref(uint64_t pa) {
 //   return atomic_get(&pages[PAGE2NUM(pa)].refcnt);
 // }
-
-void mark_page(uint64_t pa, int type) {
-  pages[PAGE2NUM(pa)].type = type;
-}
 
 int page_type(uint64_t pa) {
   return pages[PAGE2NUM(pa)].type;
@@ -116,8 +101,10 @@ _mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int prot, in
   for(;;){
     if((pte = _walk(pagetable, a, 1, spec)) == 0)
       goto bad;
-    if(*pte & PTE_V)
+    if(*pte & PTE_V) {
+      pte_print(pte);
       panic("mappages: remap");
+    }
     *pte = PA2PTE_SPEC(pa, spec) | prot | PTE_V;
 #ifdef RMAP
     /* 给用户空间的映射建立rmap */
@@ -196,63 +183,50 @@ void pte_print(pte_t *pte) {
   printf("pte %#lx pa %#lx %s\n", *pte, pa, rwxuvc);
 }
 
-// return atomic_inc(&pages[PAGE2NUM(pa)].refcnt);
 
 pgref_t __page_refcnt_pointer(page_t *page){
-  // pgref_t ret;
-  // acquire(&reflock);
-  // ret = page->refcnt;
-  // release(&reflock);
   return atomic_get(&page->refcnt);
 }
 
 pgref_t __page_refcnt_paddr(uint64_t pa){
-  // pgref_t ret;
-  // acquire(&reflock);
-  // ret = page->refcnt;
-  // release(&reflock);
   return __page_refcnt_pointer(PATOPAGE(pa));
 }
 
-/**
- * @brief 增加1个引用，返回旧的
- * 
- */
-pgref_t get_page(page_t *page){
-  // pgref_t ret;
-  // acquire(&reflock);
-  // ret = ++page->refcnt;
-  // release(&reflock);
-  return atomic_inc(&page->refcnt);
+
+pgref_t __deref_page_pointer(page_t *page) {
+  return atomic_dec(&page->refcnt) - 1;
 }
 
-/**
- * @brief refcnt减1，返回旧的
- * 
- */
-pgref_t put_page(page_t *page){
-  pgref_t ret;
+pgref_t __deref_page_paddr(uint64_t pa) {
+  return __deref_page_pointer(&pages[PAGE2NUM(pa)]);
+}
 
-  // #ifdef TODO
-  // todo("use atomic to replace reflock may inprove performance");
-  // #endif
+pgref_t __get_page_pointer(page_t *page){
+  assert(atomic_get(&page->refcnt) > 0);
+  return atomic_inc(&page->refcnt) + 1;
+}
+
+pgref_t __get_page_paddr(uint64_t pa){
+  return __get_page_pointer(&pages[PAGE2NUM(pa)]);
+}
+
+
+pgref_t __put_page_pointer(page_t *page){
+  pgref_t ret;
 
   if(page_refcnt(page) <= 0)
     ER();
-  // acquire(&reflock);
-  // ret = --page->refcnt;
-  // release(&reflock);
-  ret = atomic_dec(&page->refcnt);
-  if(ret == 1){
-    zone_t *zone = &memory_zone;
-    spin_lock(&zone->lru_lock);
-    if(TestClearPageLRU(page))
-      del_page_from_lru(zone, page);
-    spin_unlock(&zone->lru_lock);
+
+  ret = atomic_dec(&page->refcnt) - 1;
+  if(ret == 0){
     free_one_page(page);
   }
   return ret; 
 
+}
+
+pgref_t __put_page_padder(uint64_t pa){
+  return __put_page_pointer(&pages[PAGE2NUM(pa)]);
 }
 
 /**

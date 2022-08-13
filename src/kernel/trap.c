@@ -44,11 +44,13 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+#include "mm/vm.h"
 extern void vmprint(pagetable_t pagetable);
 void
 usertrap(void)
 {
   uint64 scause = read_csr(scause);
+
   if((r_sstatus() & SSTATUS_SPP) != 0){
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", read_csr(sepc), read_csr(stval));
@@ -69,6 +71,15 @@ usertrap(void)
   p->u_time += ticks - p->stub_time;
   // save user program counter.
   proc_get_tf(p)->epc = read_csr(sepc);
+  // if(scause != INTR_TIMER) {
+  //   // uint64_t instr;
+  //   // copy_from_user(&instr, 0x1000, 8);
+  //   printf("scause is %s sepc is %#lx\n", riscv_cause2str(scause), r_sepc());
+    
+  //   if(proc_get_tf(p)->epc == 0x1004)
+  //     proc_get_tf(p)->epc += 8;
+  //   tf_print(p->trapframe);
+  // }
 
   if (scause == EXCP_SYSCALL) {
     if(p->killed) {
@@ -94,7 +105,7 @@ usertrap(void)
   }
 
   if(p->killed) {
-    tf_print(proc_get_tf(p));
+    // tf_print(proc_get_tf(p));
     exit(-1);
   }
 
@@ -103,6 +114,17 @@ usertrap(void)
   }
 
   sig_handle(p->signal);
+
+  // if(scause != INTR_TIMER) {
+  //   uint64_t data;
+
+  //   copy_from_user(&data, 0x7fffffb0 + 72, 8);
+  //   printf("scause is %s sepc is %#lx data is %#lx\n", riscv_cause2str(scause), r_sepc(), data);
+    
+  //   // if(proc_get_tf(p)->epc == 0x1004)
+  //   //   proc_get_tf(p)->epc += 8;
+  //   tf_print(p->trapframe);
+  // }
 
   usertrapret();
 }
@@ -123,6 +145,7 @@ usertrapret(void)
   p->stub_time = ticks;
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec((uint64)uservec);
+  // printf("epc is %#lx\n", proc_get_tf(p)->epc);
 
   // set up trapframe values that uservec will need when
   // the process next re-enters the kernel.        // kernel page table
@@ -161,25 +184,9 @@ kerneltrap(ktf_t *context)
   proc_t *p = myproc();
   
   
-  // if(myproc()) {
-  //   myproc()->ktrap_fp = *(uint64*)(r_fp()-16);
-  // }
-
-  // if(!IS_INTR(scause)) {
-  //   debug("sepc is %lx scause is %lx stval is %lx intr is %d", r_sepc(), scause, r_stval(), intr_get());
-  //   debug("kstack: %lx", myproc()->mm->kstack);
-  //   // backtrace(myproc());
-  //   LOOP();
-  // }
-
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
 
-  // debug_if(scause != INTR_SOFT, "scause: "rd("%s")" SIE: %d va %#lx spec %#lx", riscv_cause2str(scause), intr_get(), r_stval(), sepc);
-  // debug_if(myproc(), "pagetable is %#lx", myproc()->mm->pagetable);
-  // debug_if(myproc(), "curr sp is %#lx", r_sp());
-  // debug_if(myproc(), "proc sp is %#lx", myproc()->kstack);
-  // if(IS_INTR(scause)) 
   if(intr_get() != 0) {
     printf("scause %s\n", riscv_cause2str(scause));
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -188,8 +195,6 @@ kerneltrap(ktf_t *context)
 
   if(devintr(scause) == 0) {
     // ok
-    //  debug_if(debug_flag == 2, "kdev %s\n", riscv_cause2str(scause));
-    // debug_if(myproc() && myproc()->pid == 2, "ktrap: proc is %s syscall num is %d sepc is %lx", p->name, proc_get_tf(p)->a7, r_sepc());
   } else if(handle_pagefault(scause) == 0) {
     // ok
     // debug("lazy addr %#lx", r_stval());
@@ -223,6 +228,7 @@ clockintr()
   ticks++;
   // timespec_t time = TICK2TIMESPEC(ticks);
   // time_print(&time);
+  // printf("%ld\n", ticks);
   wakeup(&ticks);
   release(&tickslock);
 }

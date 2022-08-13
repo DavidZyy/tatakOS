@@ -13,9 +13,9 @@
 
 
 void 
-backtrace(proc_t *p) {
+backtrace() {
   uint64 fp, top;
-  fp = p->ktrap_fp;
+  fp = r_fp();
   top = PGROUNDUP(fp);
   while(fp < top) {
     printf("%p\n", *(uint64*)(fp-8));
@@ -41,7 +41,7 @@ print_sbiret(sbiret_t ret) {
 void
 print_page(int pgnum) {
   page_t *page = &pages[pgnum];
-  printf("page %d {order: %d, refcnt: %d, alloc: %d}\n", page->order, page->refcnt, page->alloc);
+  printf("page %d {order: %d, refcnt: %d, alloc: %d, type: %d}\n", pgnum, page->order, page->refcnt, page->alloc, page->type);
 }
 
 void

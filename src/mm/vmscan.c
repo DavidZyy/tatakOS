@@ -96,7 +96,8 @@ static void pageout(page_t *page, struct address_space *mapping)
 	entry_t *entry = mapping->host;
 
 	sych_entry_size_in_disk(entry);
-	write_one_page(entry, page, page->index);
+	write_one_page(entry, PAGETOPA(page), page->index);
+	ClearPageDirty(page);
 }
 
 /*
@@ -516,6 +517,9 @@ out:
 static void needpool(entry_t pool[NENTRY]) {
 	return;
 }
+
+void writeback_entrys_and_free_mapping(struct writeback_control *wbc);
+extern atomic_t used;
 /*
  * 唤醒写回线程。写回更多的页。
  */
@@ -523,12 +527,28 @@ void free_more_memory(void)
 {
   /* 启动bdflush写回 */
 	/* 是否会出现两个线程写回一个页的情况？ */
+	/* 尝试释放所有的pagecache */
+  int u1 = atomic_get(&used);
+	writeback_entrys_and_free_mapping(NULL);
 	// wakeup_bdflush(1024);
 	#ifdef TODO
 	todo("before free pages, write back some entry, and free");
 	#endif
 	// yield();
- extern entry_t pool[NENTRY];
- needpool(pool);
+//  extern entry_t pool[NENTRY];
+//  for(int i = NENTRY-1; i >= 0; i--){
+// 	entry_t * entry = &pool[i];
+// 	if(!entry->dirty && entry->i_mapping){
+// 		elock(entry);
+// 		free_mapping(entry);
+// 		entry->i_mapping = kzalloc(sizeof(address_space_t));
+// 		entry->i_mapping->host = entry;
+// 		eunlock(entry);
+// 	}
+//  }
+	int u2 = atomic_get(&used);
+	if(u1 - u2 > SWAP_CLUSTER_MAX)
+		return;
+//  needpool(pool);
   try_to_free_pages();
 }
