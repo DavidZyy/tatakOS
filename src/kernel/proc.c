@@ -739,7 +739,7 @@ sleep(void *chan, struct spinlock *lk)
 
     if(lk != NULL)
       release(lk);
-    else {
+    else if((uint64_t)lk == 1){
       page_t *page = (page_t *)chan;
       page_spin_unlock(page);
     }
@@ -760,7 +760,7 @@ sleep(void *chan, struct spinlock *lk)
 
   if(lk != NULL)
     acquire(lk);
-  else{
+  else if((uint64_t)lk == 1){
     page_t *page = (page_t *)chan;
     page_spin_lock(page);
   }

@@ -10,7 +10,8 @@
 #ifdef RMAP
 /* 参考了linux 2.6.0的reverse mappping方案，这个方案感觉十分占用内存 */
 
-#define NRPTE 4-1
+/* 之前设为4-1，没有加括号，在宏中展开为~4-1 */
+#define NRPTE 3
 
 /*
  * next_and_idx encodes both the address of the next pte_chain and the

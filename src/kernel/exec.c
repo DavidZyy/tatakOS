@@ -225,6 +225,7 @@ int exec(char *path, char **argv, char **envp) {
       pte_t *pte;
       uint64_t pa;
       uint prot;
+      /* 具有写权限的段不能共享(或者使用类似cow的机制共享？) */
       if(ph.flags & PF_W)
         goto loadseg;
       /* 复制uvmcopy代码，把va复制为i了。 */

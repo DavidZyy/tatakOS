@@ -205,8 +205,8 @@ extern void print_page_rmap(page_t *page);
  * 打印页信息
  */
 void print_page_info(page_t *page){
-  printf("refcnt: %d\tpgnum: %d\taddr: 0x%x\tflags: 0x%x\tpg_pointer: 0x%x\n", 
-  page->refcnt, page-pages, NUM2PAGE(page-pages), page->flags, page);
+  printf("refcnt: %d\tcnt: %d\tpgnum: %d\taddr: 0x%x\tflags: 0x%x\tpg_pointer: 0x%x\n", 
+  page->refcnt, page->mapcount, page-pages, NUM2PAGE(page-pages), page->flags, page);
 #ifdef RMAP
   print_page_rmap(page);
 #endif

@@ -35,6 +35,9 @@ buddy_list_t lists[MAX_ORDER];
 atomic_t used;
 uint total;
 
+/* 是否允许申请预留内存（当内存不足的时候，写回使用 */
+uint64_t use_reserved_flag;
+
 /**
  * @brief this func and the next one is for debug
  * 
@@ -68,6 +71,7 @@ uint64_t buddy_gettotal() {
 }
 
 void buddy_init() {
+  use_reserved_flag = 0;
   for(int i = 0; i < MAX_ORDER; i++) {
     BUDDY_INIT_HEAD(lists[i].head);
     initlock(&lists[i].lock, "buddy list");
@@ -140,7 +144,10 @@ void *buddy_alloc(size_t size) {
   
   // no rooms
   int u = atomic_get(&used);
-  if(empty(order) || (u * 100 / total) >= 99) {
+  if(empty(order))
+    ERROR("OUT OF MEMORY!");
+
+  if(((u * 100 / total) >= AVAILABLE_MEMORY_RATE ) && !use_reserved_flag ) {
   // if(empty(order)) {
     release(&lists[order].lock);
 

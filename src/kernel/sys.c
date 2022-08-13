@@ -155,7 +155,7 @@ uint64_t sys_memuse(void) {
   
   buddy_print_free();
 
-  printf("op: %d", op);
+  // printf("op: %d", op);
   if(op == ALL_REFERED_PAGES){
     print_not_freed_pages(); 
   }

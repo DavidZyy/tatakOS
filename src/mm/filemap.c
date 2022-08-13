@@ -371,7 +371,7 @@ uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint6
       /* 整个页都要重新写过的，就没必要从磁盘中读了；或者要写的文件偏移大于文件在磁盘上的大小，也没必要读磁盘  */
       if(!(pg_off == 0 && rest >= PGSIZE))
         if(pg_id < pgnums_in_disk)
-          read_one_page(entry, pa, pg_id);
+          read_one_page(entry, page, pg_id);
       add_to_page_cache_lru(page, mapping, pg_id);
     }
     else{

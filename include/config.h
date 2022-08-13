@@ -11,8 +11,11 @@
 /**
  * 共享相同程序的可执行页，别忘了get_page
  */
-// #define SHARE_LOAD
+#define SHARE_LOAD
 
 /***************参数****************/
 /* 最大readahead页数占当前空余内存的页数 */
 #define READ_AHEAD_RATE 10
+
+/* 可使用的内存比率(减去预留的内存比率) */
+#define AVAILABLE_MEMORY_RATE 98

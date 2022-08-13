@@ -66,11 +66,12 @@ writeback_entrys_and_free_mapping(struct writeback_control *wbc){
     // address_space_t *mapping = entry->i_mapping;
 
     /* 只设置一个pdfulsh，不用考虑两条pdflush并发问题 */
-    acquiresleep(&entry->lock);
+    // acquiresleep(&entry->lock);
     writeback_single_entry(entry);
-    releasesleep(&entry->lock);
+    // releasesleep(&entry->lock);
 
-    free_mapping(entry);
+    ERROR("can not free mapping ,we can only free pages!");
+    // free_mapping(entry);
 
     // list_del(&entry->e_list);
   }

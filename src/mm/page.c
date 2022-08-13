@@ -236,7 +236,8 @@ void lock_page(page_t *page){
   page_spin_lock(page);
   while(unlikely(TestSetPageLocked(page))){
     while(PageLocked(page))
-      sleep(page, NULL);
+      /* 传入1告诉sleep是lock_page */
+      sleep(page, (struct spinlock *)1);
   }
   page_spin_unlock(page);
 }

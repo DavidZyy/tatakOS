@@ -19,7 +19,7 @@ void main() {
     mkdirat(-100, "proc/mounts");
 
     memuse();
-    int status;
+    // int status;
     char *argv[4];
     argv[0] = "busybox";
     // argv[1] = "du";

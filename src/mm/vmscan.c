@@ -96,7 +96,7 @@ static void pageout(page_t *page, struct address_space *mapping)
 	entry_t *entry = mapping->host;
 
 	sych_entry_size_in_disk(entry);
-	write_one_page(entry, PAGETOPA(page), page->index);
+	write_one_page(entry, page, page->index);
 	ClearPageDirty(page);
 }
 
@@ -530,6 +530,7 @@ void free_more_memory(void)
 	/* 尝试释放所有的pagecache */
   int u1 = atomic_get(&used);
 	writeback_entrys_and_free_mapping(NULL);
+	// ER();
 	// wakeup_bdflush(1024);
 	#ifdef TODO
 	todo("before free pages, write back some entry, and free");
