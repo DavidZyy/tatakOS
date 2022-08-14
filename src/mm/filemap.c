@@ -393,6 +393,12 @@ uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint6
     rest -= len;
     cur_off += len; 
     buff += len;
+
+    /* size 大小要及时更新到entry，因为这中间可呢发生内存不够，去写回并释放pagecache的情况 */
+    int newsize = off + len;
+    if(newsize > entry->raw.size) {
+      entry->size_in_mem = newsize;
+    }
   }
 
   return n - rest;

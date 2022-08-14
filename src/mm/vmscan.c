@@ -518,10 +518,12 @@ static void needpool(entry_t pool[NENTRY]) {
 	return;
 }
 
-void writeback_entrys_and_free_mapping(struct writeback_control *wbc);
+void writeback_entrys_and_shrink_pagecache(struct writeback_control *wbc);
+void remove_put_pages_in_pagecache(entry_t *entry);
 extern atomic_t used;
 /*
  * 唤醒写回线程。写回更多的页。
+ * 未mmaped 的 pagecache现在不通过lru回收，而通过释放回收。
  */
 void free_more_memory(void)
 {
@@ -529,24 +531,25 @@ void free_more_memory(void)
 	/* 是否会出现两个线程写回一个页的情况？ */
 	/* 尝试释放所有的pagecache */
   int u1 = atomic_get(&used);
-	writeback_entrys_and_free_mapping(NULL);
+	writeback_entrys_and_shrink_pagecache(NULL);
 	// ER();
 	// wakeup_bdflush(1024);
 	#ifdef TODO
 	todo("before free pages, write back some entry, and free");
 	#endif
 	// yield();
-//  extern entry_t pool[NENTRY];
-//  for(int i = NENTRY-1; i >= 0; i--){
-// 	entry_t * entry = &pool[i];
-// 	if(!entry->dirty && entry->i_mapping){
-// 		elock(entry);
-// 		free_mapping(entry);
-// 		entry->i_mapping = kzalloc(sizeof(address_space_t));
-// 		entry->i_mapping->host = entry;
-// 		eunlock(entry);
-// 	}
-//  }
+ extern entry_t pool[NENTRY];
+ for(int i = NENTRY-1; i >= 0; i--){
+	entry_t * entry = &pool[i];
+	if(!entry->dirty && entry->i_mapping){
+		/* 如果已经上锁了，说明可能是在读写此entry的时候内存不足来到这里的，那么跳过此entry */
+		if(entry->lock.locked)
+			continue;
+		elock(entry);
+		remove_put_pages_in_pagecache(entry);
+		eunlock(entry);
+	}
+ }
 	int u2 = atomic_get(&used);
 	if(u1 - u2 > SWAP_CLUSTER_MAX)
 		return;

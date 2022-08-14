@@ -30,20 +30,14 @@ void writeback_single_entry(entry_t *entry){
   if(!entry->dirty)
     return;
 
+  printf(ylw("begin write pages!"));
   debug(ylw("begin write pages!"));
   sych_entry_in_disk(entry);
   // mpage_writepages(mapping);
   debug(ylw("end write pages!\n"));
+  printf(ylw("end write pages!\n"));
 
-  debug(ylw("begin free mapping!"));
-  /* 这里不对，写回不意味着要回收 */
-  #ifdef TODO
-  todo("");
-  #endif
-  // free_mapping(entry);
-  debug(ylw("end free mapping!"));
-
-  // list_del(&entry->e_list); 在运行lat_fs时错误
+    // list_del(&entry->e_list); 在运行lat_fs时错误
   list_del_init(&entry->e_list);
   // buddy_print_free();  
 }
@@ -54,12 +48,13 @@ void writeback_single_entry_idx(uint64_t idx){
   writeback_single_entry(&pool[idx]); 
 }
 
+extern void remove_put_pages_in_pagecache(entry_t *entry);
 /**
  * @brief 我们的文件系统中没有struct inode，对应的数据结构是struct fat_entry
  * linux 中的原型函数为writeback_inodes
  */
 void
-writeback_entrys_and_free_mapping(struct writeback_control *wbc){
+writeback_entrys_and_shrink_pagecache(struct writeback_control *wbc){
   /* 不仅是dirty的entry占据pagecache，可执行文件也会 */
   while(!list_empty(&fat->fat_dirty)){
     entry_t *entry = list_entry(fat->fat_dirty.prev, entry_t, e_list);
@@ -70,9 +65,10 @@ writeback_entrys_and_free_mapping(struct writeback_control *wbc){
     writeback_single_entry(entry);
     // releasesleep(&entry->lock);
 
-    ERROR("can not free mapping ,we can only free pages!");
+    // ERROR("can not free mapping ,we can only free pages!");
     // free_mapping(entry);
-
+    /* 把pages从pagecache中移除，保留i_mapping */
+    remove_put_pages_in_pagecache(entry);
     // list_del(&entry->e_list);
   }
 }

@@ -62,6 +62,8 @@ typedef struct radix_tree_path {
  * 返回一颗rdt中所有具有tag的页的物理地址并其index，以链表的形式。
  * 
  * 一次要读/写的页 
+ * 这个结构体用于批量读/写page，将其串联起来，现在似乎用不着了，因为page本身可以充当这个角色，它有index和lru，
+ * 也能根据其指针算出其对应的地址。
  */
 typedef struct rw_page {
   uint64_t pa;

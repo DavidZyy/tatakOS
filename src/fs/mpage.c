@@ -365,3 +365,110 @@ void msync(uint64_t addr, uint64_t length, int flags){
     rest_cnts -= cnts;
   }
 }
+
+zone_t *zone = &memory_zone;
+
+void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_node_t *node, int height){
+// void __get_all_putable_pages_in_pagecache(entry_t *entry){
+  if(height == 0){
+    page_t *page = (page_t *)node;
+
+    /* 在这里锁住页，那么解锁后其他进程不是又可以获取该页了吗？但是此时页已经被释放了，再去获取是错误的，
+    从这个角度看，锁好像没用 */
+    if(!page_mapped(page) && !TestSetPageLocked(page) && !PageWriteback(page)){
+      /* 别忘了这一步 */
+      // list_del_init(&page->lru);
+      // TestClearPageLRU(page);
+      /* put_page也会把page从lru上取下，这里为了利用page的链表，提前取下 */
+      spin_lock(&zone->lru_lock);
+      if(TestClearPageLRU(page))
+          del_page_from_lru(zone, page);
+      spin_unlock(&zone->lru_lock);
+      INIT_LIST_HEAD(&page->lru);
+
+      list_add_tail(&page->lru, page_head);
+    }
+  }
+  else{
+    for(int i = 0; i < RADIX_TREE_MAP_SIZE; i++){
+      if(node->slots[i]){
+        __get_all_putable_pages_in_pagecache(page_head, node->slots[i], height-1);
+      }
+    }
+  }
+}
+
+/**
+ * 得到一个pageecache中所有可释放页的链表，从lru上取下来，并使用page的lru字段串联起来，上锁。
+ * 不要取下已经映射过的页，上锁的页，正在写回的页。
+ * 
+ */
+void get_all_putable_pages_in_pagecache(entry_t *entry, list_head_t *page_head){
+  radix_tree_root_t *root = &entry->i_mapping->page_tree;
+
+  __get_all_putable_pages_in_pagecache(page_head, root->rnode, root->height);
+  return;
+}
+
+/* 把所有的页都移除entry的pagecache，释放页 */
+void remove_put_pages_in_pagecache(entry_t *entry){
+  // // address_space_t *mapping = entry->i_mapping;
+  // // rw_page_list_t *pg_list;
+  // // rw_page_t *rm_page;
+
+  // // /* 找到entry所有的dirty page */
+  // // pg_list = find_pages_tag(mapping, PAGECACHE_TAG_DIRTY);
+
+
+  // // if(pg_list == NULL)
+  // //   return;
+  
+  // // for(rm_page = pg_list->head; rm_page; rm_page=rm_page->next){
+  // //   page_t *page = PATOPAGE(rm_page->pa);
+  // //   /* 映射过的页通过页回收算法回收 */
+  // //   if(page_mapped(page))
+  // //     continue;
+  // //   if(TestSetPageLocked(page))
+  // //     continue;
+  // //   remove_from_page_cache(page);
+  // //   /* page已经被释放掉了，unlock_page唤醒似乎也无效了 */
+  // //   if (!TestClearPageLocked(page))
+  // //     ER();
+  // //   put_page(page);
+  // // }
+
+  // free_rw_page_list(pg_list, READ);
+  page_t *cur_page;
+  page_t *prev_page = NULL;
+  LIST_HEAD(page_head);
+
+  get_all_putable_pages_in_pagecache(entry, &page_head);
+
+  if(list_empty(&page_head))
+    return;
+
+
+  list_for_each_entry(cur_page, &page_head, lru){
+    if(prev_page){
+      list_del(&prev_page->lru);
+      put_page(prev_page);
+    }
+
+    if(page_mapped(cur_page) || !PageLocked(cur_page) || PageWriteback(cur_page)) 
+      ER();
+    remove_from_page_cache(cur_page);
+    if(!TestSetPageLocked(cur_page))
+      ER();
+
+    // /* 一边遍历一边修改链表 */
+    // list_del(&cur_page->lru);
+    // put_page(cur_page);
+    /* can't put cur_page in current loop, because put page will release it's lru, which we need 
+      to find the next page */
+    prev_page = cur_page;
+  }
+
+  list_del(&prev_page->lru);
+  put_page(prev_page);
+
+}

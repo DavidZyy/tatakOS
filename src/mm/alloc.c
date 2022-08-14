@@ -89,6 +89,7 @@ retry:
             wakeup(&use_reserved_flag);
         }
         else{
+            /* 只需要一个进程回收页即可，如果检测到已经有其他进程回收了，睡眠 */
             /* 似乎没有锁需要释放 */
             sleep(&use_reserved_flag, NULL);
         }
@@ -141,7 +142,7 @@ void free_one_page(page_t *page) {
     zone_t *zone = &memory_zone;
     spin_lock(&zone->lru_lock);
     if(TestClearPageLRU(page))
-    del_page_from_lru(zone, page);
+        del_page_from_lru(zone, page);
     spin_unlock(&zone->lru_lock);
     buddy_free_one_page(page);
 }
