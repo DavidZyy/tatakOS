@@ -89,6 +89,8 @@ static inline void list_add_tail(struct list_head *pnew, struct list_head *head)
  */
 static inline void __list_del(struct list_head * prev, struct list_head * next)
 {
+	if(next == NULL)
+		for(;;);
 	next->prev = prev;
 	prev->next = next;
 }

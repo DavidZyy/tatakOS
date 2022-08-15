@@ -480,9 +480,9 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
     *pte = PA2PTE(pa) | riscv_map_prot(area->prot) | PTE_V;
     sfence_vma_addr(address);
     /* 没有rmap，从lru链表上删除，不参与页回收 */
-#ifndef RMAP
-    del_page_from_lru(&memory_zone, page);
-#endif
+// #ifndef RMAP
+    // del_page_from_lru(&memory_zone, page);
+// #endif
   }
 
   return 0; 

@@ -64,6 +64,7 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
 typedef enum {
     PF_LOAD,
     PF_STORE,
+    PF_INSTRUCTION,
     PF_UNKNOWN,
 } pagefault_t;
 
@@ -84,6 +85,7 @@ static pagefault_t get_pagefault(uint64 scause) {
         // #endif
         case EXCP_LOAD_PAGE_FAULT:return PF_LOAD;
         case EXCP_LOAD_FAULT:return PF_LOAD;
+        case EXCP_INSTR_PAGE_FAULT: return PF_INSTRUCTION;
         default:return PF_UNKNOWN;
     }
 }
@@ -98,6 +100,8 @@ static int have_prot(pagefault_t fault, vma_t *vma){
         if(vma->prot & PROT_READ)
             return 1;
     }
+    if(fault == PF_INSTRUCTION)
+        return 1;
     return 0;
 }
 

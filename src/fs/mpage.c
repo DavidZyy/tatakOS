@@ -375,7 +375,11 @@ void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_nod
 
     /* 在这里锁住页，那么解锁后其他进程不是又可以获取该页了吗？但是此时页已经被释放了，再去获取是错误的，
     从这个角度看，锁好像没用 */
-    if(!page_mapped(page) && !TestSetPageLocked(page) && !PageWriteback(page)){
+    if(!TestSetPageLocked(page) && !PageWriteback(page)){
+#ifdef RMAP
+      if(page_mapped(page))
+        return;
+#endif
       /* 别忘了这一步 */
       // list_del_init(&page->lru);
       // TestClearPageLRU(page);
@@ -454,8 +458,14 @@ void remove_put_pages_in_pagecache(entry_t *entry){
       put_page(prev_page);
     }
 
-    if(page_mapped(cur_page) || !PageLocked(cur_page) || PageWriteback(cur_page)) 
+    if(!PageLocked(cur_page) || PageWriteback(cur_page)) 
       ER();
+
+#ifdef RMAP
+    if(page_mapped(cur_page))
+      ER();
+#endif
+
     remove_from_page_cache(cur_page);
     if(!TestSetPageLocked(cur_page))
       ER();

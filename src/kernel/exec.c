@@ -107,6 +107,26 @@ static uint64_t loadinterp(mm_t *mm) {
 
 }
 
+file_t *open_exe(entry_t *elf){
+    struct file *f;
+    proc_t *p = myproc();
+    fdtable_t *tbl = p->fdtable;
+    int fd;
+    int omode =  O_RDWR;
+
+    edup(elf);
+    if ((f = filealloc()) == 0 || (fd = fdtbl_fdalloc(tbl, f, -1, omode)) < 0) {
+      ER();
+    }
+
+    f->ep = elf;
+    f->readable = !(omode & O_WRONLY);
+    f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+    f->type = FD_ENTRY;
+    f->off = 0;
+    return f;
+}
+
 extern struct proc proc[NPROC];
 int exec(char *path, char **argv, char **envp) {
   // print_argv(argv);
@@ -119,6 +139,7 @@ int exec(char *path, char **argv, char **envp) {
   struct proc *p = myproc();
   mm_t *newmm;
   mm_t *oldmm = p->mm;
+  file_t *elf_file;
 
   /**
    * 进程的新名字
@@ -129,16 +150,16 @@ int exec(char *path, char **argv, char **envp) {
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
 
-#ifdef SHARE_LOAD
-  proc_t *same_proc = NULL,  *cur = NULL;
-  for(cur = proc; cur < &proc[NPROC]; cur++){
-    // if(cur->exe == p->exe && cur != p){
-    if(strncmp(cur->name, p->name, 20) == 0 && cur != p){
-      same_proc = cur;
-      break;
-    }
-  }
-#endif
+// #ifdef SHARE_LOAD
+//   proc_t *same_proc = NULL,  *cur = NULL;
+//   for(cur = proc; cur < &proc[NPROC]; cur++){
+//     // if(cur->exe == p->exe && cur != p){
+//     if(strncmp(cur->name, p->name, 20) == 0 && cur != p){
+//       same_proc = cur;
+//       break;
+//     }
+//   }
+// #endif
 
   uint64_t aux[AUX_CNT][2];
   memset(aux, 0, sizeof(aux));
@@ -180,6 +201,9 @@ int exec(char *path, char **argv, char **envp) {
     return -1;
   }
 
+  /* 打开文件 */
+  elf_file = open_exe(ep);
+
   proc_switchmm(p, newmm);
 
   elock(ep);
@@ -216,48 +240,73 @@ int exec(char *path, char **argv, char **envp) {
     if(ph.memsz < ph.filesz)
       goto bad;
     /* 建立好了，通过do_filemap_pages缺页异常来读，而不是do_anonymous_page，这样不
-      全部把程序加载到内存中而执行，可以执行大于内存的程序 */
+      全部把程序加载到内存中而执行，可以执行大于内存的程序，MAP_SHARED */
+    // if(do_mmap(newmm, NULL, 0, ph.vaddr, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
+      // goto bad;
+    int vaddr = ph.vaddr;
+    int file_off = ph.off;
+    /* 或者直接页对齐 */
+    int map_off = file_off - (vaddr - PGROUNDDOWN(vaddr));
+    if(map_off < 0)
+      ER();
+
+    int flags = MAP_SHARED;
+    int len = ph.memsz;
+    if(ph.flags & PF_W){
+      flags = MAP_PRIVATE;
+      len = ph.filesz;
+      /* BSS段 */
+      // do_mmap(newmm, NULL, 0, PGROUNDUP(ph.vaddr+ph.filesz), ph.memsz-ph.filesz, flags, elf_map_prot(ph.flags));
     if(do_mmap(newmm, NULL, 0, ph.vaddr, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
       goto bad;
-#ifdef SHARE_LOAD
-    if(same_proc){
-      pagetable_t old = same_proc->mm->pagetable, new = p->mm->pagetable;
-      pte_t *pte;
-      uint64_t pa;
-      uint prot;
-      /* 具有写权限的段不能共享(或者使用类似cow的机制共享？) */
-      if(ph.flags & PF_W)
-        goto loadseg;
-      /* 复制uvmcopy代码，把va复制为i了。 */
-      for(int va = PGROUNDDOWN(ph.vaddr); va < ph.vaddr + ph.filesz; va += PGSIZE){
-        if((pte = walk(old, va, 0)) == 0)
-          continue;
-        // if((*pte & PTE_V) == 0)
-          // continue;
-
-
-        pa = PTE2PA(*pte);
-
-        // if(va == 0x121000)
-        //   pa = (uint64_t)kalloc();
-
-        sfence_vma_addr(va);
-        get_page(pa); 
-
-        prot = PTE_FLAGS(*pte);
-        if(mappages(new, va, PGSIZE, pa, prot) != 0){
-          /* Free pa here is ok for COW, because we have added refcnt for it */
-          kfree((void *)pa);
-          ER();
-        }
-      }
-
-      // do_mmap(newmm, NULL, 0, 0x124000, 0x1000, 0, elf_map_prot(ph.flags));
-
-      continue;
+    goto loadseg;
     }
+
+    if(do_mmap(newmm, elf_file, map_off, ph.vaddr, len, flags, elf_map_prot(ph.flags)) == -1)
+      ER();
+    
+    /* 不对，只要够大就行 */
+    ep->size_in_mem += ph.memsz;
+    continue;
+// #ifdef SHARE_LOAD
+//     if(same_proc){
+//       pagetable_t old = same_proc->mm->pagetable, new = p->mm->pagetable;
+//       pte_t *pte;
+//       uint64_t pa;
+//       uint prot;
+//       /* 具有写权限的段不能共享(或者使用类似cow的机制共享？) */
+//       if(ph.flags & PF_W)
+//         goto loadseg;
+//       /* 复制uvmcopy代码，把va复制为i了。 */
+//       for(int va = PGROUNDDOWN(ph.vaddr); va < ph.vaddr + ph.filesz; va += PGSIZE){
+//         if((pte = walk(old, va, 0)) == 0)
+//           continue;
+//         // if((*pte & PTE_V) == 0)
+//           // continue;
+
+
+//         pa = PTE2PA(*pte);
+
+//         // if(va == 0x121000)
+//         //   pa = (uint64_t)kalloc();
+
+//         sfence_vma_addr(va);
+//         get_page(pa); 
+
+//         prot = PTE_FLAGS(*pte);
+//         if(mappages(new, va, PGSIZE, pa, prot) != 0){
+//           /* Free pa here is ok for COW, because we have added refcnt for it */
+//           kfree((void *)pa);
+//           ER();
+//         }
+//       }
+
+//       // do_mmap(newmm, NULL, 0, 0x124000, 0x1000, 0, elf_map_prot(ph.flags));
+
+//       continue;
+//     }
 loadseg:
-#endif
+// #endif
     if(loadseg(newmm, ph.vaddr, ep, ph.off, ph.filesz) < 0)
       goto bad;
   }

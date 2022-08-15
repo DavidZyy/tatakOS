@@ -1055,12 +1055,16 @@ struct bio_vec *fat_get_sectors(fat32_t *fat, uint32_t cclus, int off, int n) {
     // debug("now off is %d", off)
     // 计算起始簇
     while(off >= BPC(fat)) {
-        cclus = fat_next_cluster(fat, cclus);
-        off -= BPC(fat);
         /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况 */
         if(IS_FAT_CLUS_END(cclus)) {
             ER();
         }
+        cclus = fat_next_cluster(fat, cclus);
+        off -= BPC(fat);
+        /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况 */
+        // if(IS_FAT_CLUS_END(cclus)) {
+        //     ER();
+        // }
     }
 
     // printf(rd("cclus: %d\n"), cclus);

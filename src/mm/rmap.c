@@ -341,7 +341,7 @@ void print_page_rmap(page_t *page){
   if(page->pte.direct == 0)
 		goto out;
 
-  printf(grn("rmaps of the page: "));
+  printf(grn("%d rmaps of the page: "), page->mapcount);
   if(PageDirect(page)) {
     printf("%x\t", page->pte.direct);
   }
