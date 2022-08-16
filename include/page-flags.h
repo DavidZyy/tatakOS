@@ -19,6 +19,7 @@
  * lock_page时使用，防止sleep还没完成，就被wakeup了。
  */
 #define PG_spinlock 17
+#define PG_swapcache 18
 
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are
@@ -187,4 +188,9 @@ typedef struct page_state page_state_t;
 #define TestSetPageSpinlock(page)	test_and_set_bit(PG_spinlock, &(page)->flags)
 #define ClearPageSpinlock(page)		__clear_bit(PG_spinlock, &(page)->flags)
 #define TestClearPageSpinlock(page)	test_and_clear_bit(PG_spinlock, &(page)->flags)
+
+
+#define PageSwapCache(page)		test_bit(PG_swapcache, &(page)->flags)
+#define SetPageSwapCache(page)	__set_bit(PG_swapcache, &(page)->flags)
+#define ClearPageSwapCache(page)	__clear_bit(PG_swapcache, &(page)->flags)
 #endif

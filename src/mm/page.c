@@ -107,12 +107,11 @@ _mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int prot, in
     }
     *pte = PA2PTE_SPEC(pa, spec) | prot | PTE_V;
 #ifdef RMAP
-    /* 给用户空间的映射建立rmap */
-    if(a < USERSPACE_END){
+    /* 给用户空间的映射建立rmap，使用上面的会在ioremap挂掉 */
+    if(in_rmap_area(a)){
       page_t *page = PATOPAGE(pa);
 
       page_add_rmap(page, pte);
-      atomic_inc(&page->mapcount);
     }
 #endif
     if(a == last)
@@ -158,11 +157,10 @@ _uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int spec
     }
     *pte = 0;
 #ifdef RMAP
-    if(a < USERSPACE_END){
+    if(a < USERSPACE_END || a >= MMAP_BASE){
       page_t *page = PATOPAGE(pa);
 
       page_remove_rmap(page, pte);
-      atomic_dec(&page->mapcount);
     }
 #endif
     sfence_vma_addr(a);

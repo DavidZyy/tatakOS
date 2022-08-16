@@ -39,6 +39,7 @@ static inline pte_addr_t ptep_to_paddr(pte_t *ptep)
 
 void page_add_rmap(page_t *page, pte_t *ptep);
 void page_remove_rmap(page_t *page, pte_t *ptep);
+int in_rmap_area(uint64_t va);
 
 #endif	/* _LINUX_RMAP_H */
 

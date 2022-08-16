@@ -278,7 +278,13 @@ void mark_page_accessed(page_t *page);
 #define PTE_WRITE (2)
 #define PTE_EXECUTE (3)
 #define PTE_USER (4) 
+#define PTE_GLOBAL (5)
+#define PTE_ACCESS (6)
+#define PTE_DIRTY (7)
 
 // static inline  int ptep_test_and_clear_valid(pte_t *ptep)	{ return test_and_clear_bit(PTE_VALID, ptep);}
 #define DEF_PRIORITY 5
+
+static inline  int ptep_test_and_clear_dirty(pte_t *ptep)	{ return test_and_clear_bit(PTE_DIRTY, ptep); }
+static inline  int ptep_test_and_clear_access(pte_t *ptep)	{ return test_and_clear_bit(PTE_ACCESS, ptep); }
 #endif

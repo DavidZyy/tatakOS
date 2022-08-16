@@ -686,6 +686,14 @@ yield(void)
   release(&p->lock);
 }
 
+#ifdef RMAP 
+#ifdef SWAP
+extern entry_t *swap_entry;
+extern int swap_slot_id;
+entry_t *create_swap_file();
+#endif
+#endif
+
 #include "fs/fat.h"
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
@@ -710,6 +718,13 @@ forkret(void)
     // entry_t *tmp = create(fat->root, "/tmp", T_DIR);
     // if(tmp)
     //   eunlockput(tmp);
+#ifdef RMAP
+#ifdef SWAP
+    /* 这里创建ls时卡住，在initcode中创建 */
+    // swap_entry = create_swap_file();
+    swap_slot_id = 1;
+#endif
+#endif
   }
 
   usertrapret();

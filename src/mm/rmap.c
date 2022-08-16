@@ -37,6 +37,16 @@
  * 
  */
 
+int in_rmap_area(uint64_t va) {
+	if(va & ~PGMASK)
+		ER();
+
+	if(va < USERSPACE_END || (va >= MMAP_BASE && va < INTERP_BASE))
+		return 1;
+	return 0;
+}
+
+
 /**
  * @brief next_and_idx低位用来存idx，高位存next地址。
  * 
@@ -81,51 +91,51 @@ void __pte_chain_free(struct pte_chain *pte_chain)
  *
  * If the page has a single-entry pte_chain, collapse that back to a PageDirect
  * representation.  This way, it's only done under memory pressure.
+ * 计算所有映射此page的pte的access位。以此判断这个页的活跃情况。
  */
-// int page_referenced(page_t *page){
-//   pte_chain_t *pc;
-//   int referenced = 0;
+int page_referenced(page_t *page){
+  pte_chain_t *pc;
+  int referenced = 0;
 
-//   if (TestClearPageReferenced(page))
-// 		referenced++;
+  if (TestClearPageReferenced(page))
+		referenced++;
 
-//   /* 映射了一次，清掉valid位 */
-//   if (PageDirect(page)) {
-//     pte_t *pte = (pte_t *)(page->pte.direct);
-// 		/* 对应access位 */
-//     if(ptep_test_and_clear_access(pte))
-// 			referenced++;
-// 	} else {
-//     int nr_chains = 0;
-//     /* Check all the page tables mapping this page. */
-//     for (pc = page->pte.chain; pc; pc = pte_chain_next(pc)) {
-//       int i;
+  if (PageDirect(page)) {
+    pte_t *pte = (pte_t *)(page->pte.direct);
+		/* 对应access位 */
+    if(ptep_test_and_clear_access(pte))
+			referenced++;
+	} else {
+    int nr_chains = 0;
+    /* Check all the page tables mapping this page. */
+    for (pc = page->pte.chain; pc; pc = pte_chain_next(pc)) {
+      int i;
       
-//       for(int i = NRPTE-1; i >= 0; i--){
-//         pte_addr_t pte_paddr = pc->ptes[i];
-//         pte_t *p;
+      for(i = NRPTE-1; i >= 0; i--){
+        pte_addr_t pte_paddr = pc->ptes[i];
+        pte_t *p;
 
-//         if(!pte_paddr)
-//           break;
-//         p = (pte_t *)pte_paddr;
-//         if(ptep_test_and_clear_valid(p))
-//           referenced++;
+        if(!pte_paddr)
+          break;
+        p = (pte_t *)pte_paddr;
+        if(ptep_test_and_clear_access(p))
+          referenced++;
 
-//         nr_chains++;
-//       }
-//     }
-//     if (nr_chains == 1) {
-// 			pc = page->pte.chain;
-//       /* 在pte_chain中时倒放的，从NRPTE开始 */
-// 			page->pte.direct = pc->ptes[NRPTE-1];
-// 			SetPageDirect(page);
-// 			pc->ptes[NRPTE-1] = 0;
-// 			kfree(pc);
-// 		}
-//   } 
+        nr_chains++;
+      }
+    }
+    if (nr_chains == 1) {
+			pc = page->pte.chain;
+      /* 在pte_chain中时倒放的，从NRPTE开始 */
+			page->pte.direct = pc->ptes[NRPTE-1];
+			SetPageDirect(page);
+			pc->ptes[NRPTE-1] = 0;
+			kfree(pc);
+		}
+  } 
 
-// 	return referenced;
-// }
+	return referenced;
+}
 
 /**
  * try_to_unmap_one - worker function for try_to_unmap
@@ -150,6 +160,14 @@ static int try_to_unmap_one(page_t *page, pte_addr_t paddr)
 	if(pte_dirty(pte))
 		SetPageDirty(page);
 
+#ifdef RMAP
+	page_remove_rmap(page, paddr);
+#ifdef SWAP
+	if(PageSwapCache(page)){
+		*ptep = page->index;
+	}
+#endif
+#endif
 	/* 如果paddr位于当前页表，本该刷掉paddr在当前页表中的va，但是考虑到查找的效率可能不高，还不如在shrink_list中
 		刷掉整个页表 */
 	// put_page(page);
@@ -224,6 +242,8 @@ out:
 void page_add_rmap(page_t *page, pte_t *ptep) {
 	pte_chain_t *cur_pte_chain;
 
+  atomic_inc(&page->mapcount);
+
 	pte_chain_lock(page);
 
 	/* 之前没有rmap */
@@ -282,6 +302,8 @@ out:
 void page_remove_rmap(page_t *page, pte_t *ptep){
 	pte_addr_t pte_paddr = ptep_to_paddr(ptep);
 	pte_chain_t *pc;
+
+  atomic_dec(&page->mapcount);
 
 	pte_chain_lock(page);
 

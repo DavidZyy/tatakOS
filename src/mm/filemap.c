@@ -440,11 +440,13 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
     entry_t *entry = mapping->host;
     read_one_page(entry, page, pgoff);
     add_to_page_cache(page, mapping, pgoff);
+    /* 先不添加到lru中 */
     // lru_cache_add(page);
   }
   else {
     // 存在/不存在LRU
     pa = PAGETOPA(page);
+    /* 如果在lru中，取下 */
     if(TestClearPageLRU(page))
       del_page_from_lru(&memory_zone, page);
   }
@@ -456,9 +458,11 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
   if(area->flags & MAP_PRIVATE){
     uint64_t pa0 = (uint64_t)kalloc();
 #ifdef RMAP
+    page_t *page0 = PATOPAGE(pa0);
+    if (in_rmap_area(address))
+      page_add_rmap(page0, pte);
 #ifdef SWAP
     /* 页替换算法需要用到swap */
-    page_t *page0 = PAGETOPA(pa0);
     lru_cache_add(page0);
     mark_page_accessed(page0);
 #endif
@@ -466,27 +470,68 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
     memcpy((void *)pa0, (void *)pa, PGSIZE);
     
     lru_cache_add(page);
+    mark_page_accessed(page);
     put_page(page);
 
     *pte = PA2PTE(pa0) | riscv_map_prot(area->prot) | PTE_V;
-    sfence_vma_addr(address);
-#ifdef RMAP
-    pa = pa0;
-#endif
   }
   else if(area->flags & MAP_SHARED){
     /* shared */
     /* 这里小心被页回收算法回收掉！要建立rmap，如果不支持rmap需要从lru上取下来，防止被回收 */
     *pte = PA2PTE(pa) | riscv_map_prot(area->prot) | PTE_V;
-    sfence_vma_addr(address);
     /* 没有rmap，从lru链表上删除，不参与页回收 */
-// #ifndef RMAP
-    // del_page_from_lru(&memory_zone, page);
-// #endif
+#ifdef RMAP
+    lru_cache_add(page);
+    mark_page_accessed(page);
+    if(in_rmap_area(address))
+      page_add_rmap(page, pte);
+#endif
   }
+  sfence_vma_addr(address);
 
   return 0; 
 }
+
+#ifdef RMAP
+#ifdef SWAP
+extern fat32_t *fat;
+/**
+ * 和 fiemap_nopage很像，index是存在pte上的。
+ */
+int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address){
+  uint64_t index = *pte, pa;
+  entry_t *entry;
+  page_t *page;
+  address_space_t *mapping;
+
+	if ((entry = namee(fat->root, "/swap")) == 0)
+		ER();
+
+    mapping = entry->i_mapping;
+
+    page = find_get_page(mapping, index);
+    if(!page){
+        pa = (uint64_t)kalloc();
+        page = PATOPAGE(pa);
+        get_page(page);
+        add_to_page_cache(page, mapping, index);
+        read_one_page(entry, page, index);
+    }
+    else{
+      pa = PAGETOPA(page);
+    }
+    lru_cache_add(page);
+    mark_page_accessed(page);
+
+    *pte = PA2PTE(pa) | riscv_map_prot(vma->prot) | PTE_V;
+
+    if(in_rmap_area(address)){
+      page_add_rmap(page, pte);
+    } 
+    return 0;
+}
+#endif
+#endif
 
 void init_pg_head(rw_page_list_t *pg_list){
   pg_list->head = NULL;

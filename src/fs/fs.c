@@ -585,3 +585,20 @@ void sych_entry_in_disk(entry_t *entry){
   sych_entry_size_in_disk(entry);
   sych_entry_pages_in_disk(entry);
 }
+
+#ifdef SWAP
+entry_t *create_swap_file(){
+  entry_t *ep, *from;
+
+  from = myproc()->cwd;
+
+  if ((ep = namee(from, "swap")) != 0)
+    goto back;
+
+  if ((ep = create(from, "swap", T_FILE)) == 0)
+    ER();
+
+back:
+  return ep;
+}
+#endif

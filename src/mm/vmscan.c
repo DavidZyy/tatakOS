@@ -64,27 +64,25 @@ typedef struct scan_control scan_control_t;
 
 #define lru_to_page(_head) (list_entry((_head)->prev, page_t, lru))
 
-// /* Must be called with page's pte_chain_lock held. */
-// static inline int page_mapping_inuse(page_t *page)
-// {
-// 	struct address_space *mapping = page->mapping;
+/* Must be called with page's pte_chain_lock held. */
+static inline int page_mapping_inuse(page_t *page)
+{
+	struct address_space *mapping = page->mapping;
 
-// 	/* Page is in somebody's page tables. */
-// 	if (page_mapped(page))
-// 		return 1;
+	/* Page is in somebody's page tables. */
+	if (page_mapped(page))
+		return 1;
 
-// 	/* XXX: does this happen ? */
-// 	if (!mapping)
-// 		return 0;
+	/* XXX: does this happen ? */
+	if (!mapping)
+		return 0;
+	
+	/* Be more reluctant to reclaim swapcache than pagecache */
+	if (PageSwapCache(page))
+		return 1;
 
-// 	/* File is mmap'd by somebody. */
-// 	if (!list_empty(&mapping->i_mmap))
-// 		return 1;
-// 	if (!list_empty(&mapping->i_mmap_shared))
-// 		return 1;
-
-// 	return 0;
-// }
+	return 0;
+}
 
 extern void sych_entry_size_in_disk(entry_t *entry);
 /**
@@ -100,6 +98,11 @@ static void pageout(page_t *page, struct address_space *mapping)
 	ClearPageDirty(page);
 }
 
+#ifdef RMAP
+#ifdef SWAP
+int add_to_swap(page_t * page);
+#endif
+#endif
 /*
  * shrink_list adds the number of reclaimed pages to sc->nr_reclaimed
  * free的页有位于page cache的页；
@@ -116,7 +119,6 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
   while(!list_empty(page_list)){
     address_space_t *mapping;
     page_t *page;
-    // int referenced;
 
     page = lru_to_page(page_list);
     list_del(&page->lru);
@@ -139,15 +141,25 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 			goto keep_locked;
 
 #ifdef RMAP
+    int referenced;
     // todo("add bit lock");
     pte_chain_lock(page);
-    // referenced = page_referenced(page);
-		// /* In active use or really unfreeable?  Activate it. */
-		// if (referenced && page_mapping_inuse(page)){
-    //   pte_chain_unlock(page);
-		// 	goto activate_locked;
-    // }
-
+		/* page_referenced检测pte的access位，被设置了说明页最近被访问过；此时如果页正在使用，则不释放 */
+    referenced = page_referenced(page);
+		/* In active use or really unfreeable?  Activate it. */
+		if (referenced && page_mapping_inuse(page)){
+      pte_chain_unlock(page);
+			goto activate_locked;
+    }
+	#ifdef SWAP
+		/* 匿名页 */
+		if (page_mapped(page) && !mapping){
+			pte_chain_unlock(page);
+			add_to_swap(page);
+			pte_chain_lock(page);
+			mapping = page->mapping;
+		}	
+	#endif
     /*
 		 * The page is mapped into the page tables of one or more
 		 * processes. Try to unmap it here.
@@ -190,9 +202,14 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		put_page(page);
 		continue;
 
-// activate_locked:
-		// SetPageActive(page);
+#ifdef RMAP
+#ifdef SWAP
+activate_locked:
+		SetPageActive(page);
 		// pgactivate++;
+#endif
+#endif
+
 keep_locked:
 		unlock_page(page);
 keep:

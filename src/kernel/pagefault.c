@@ -7,7 +7,7 @@
 #include "kernel/proc.h"
 #include "defs.h"
 #include "mm/mm.h"
-
+#include "swap.h"
 #define __MODULE_NAME__ PAGEFAULT
 
 #include "debug.h"
@@ -39,15 +39,13 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
     *pte = PA2PTE(mem) | flag;
 #ifdef RMAP
     /* 给用户空间的映射建立rmap */
-    if(va < USERSPACE_END){
+    if(va < USERSPACE_END || va >= MMAP_BASE){
         page_t *page = PATOPAGE(mem);
         /* 建立新的rmap */
         page_add_rmap(page, pte);
-        atomic_inc(&page->mapcount);
         /* 移除旧的rmap */
         page = PATOPAGE(pa);
         page_remove_rmap(page, pte);
-        atomic_dec(&page->mapcount);
     }
 #endif
 
@@ -111,7 +109,10 @@ static int do_filemap_page(pte_t *pte, vma_t *vma, uint64_t address){
 
 #ifdef RMAP
 #ifdef SWAP 
-static int do_swap_page(){
+int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address);
+
+static int do_swap_page(pte_t *pte, vma_t *vma, uint64_t address){
+    swap_in_page(pte, vma, address);
     return 1;
 }
 #endif
@@ -126,13 +127,14 @@ static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
     *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
 
 #ifdef RMAP
+    page_t *page = PATOPAGE(newpage);
     /* 给用户空间的映射建立rmap */
-    if(address < USERSPACE_END){
-        page_t *page = PATOPAGE(newpage);
-
+    if (in_rmap_area(address))
         page_add_rmap(page, pte);
-        atomic_inc(&page->mapcount);
-    }
+#ifdef SWAP
+    lru_cache_add(page);
+    mark_page_accessed(page);
+#endif
 #endif
     /* 本来就为0，是否有必要？ */
     sfence_vma_addr(address);
@@ -169,7 +171,7 @@ int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
         }
 #ifdef RMAP
 #ifdef SWAP 
-        return do_swap_page();
+        return do_swap_page(pte, vma, rva);
 #endif
 #endif
     }

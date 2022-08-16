@@ -371,6 +371,9 @@ zone_t *zone = &memory_zone;
 void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_node_t *node, int height){
 // void __get_all_putable_pages_in_pagecache(entry_t *entry){
   if(height == 0){
+    if(!node)
+      return;
+
     page_t *page = (page_t *)node;
 
     /* 在这里锁住页，那么解锁后其他进程不是又可以获取该页了吗？但是此时页已经被释放了，再去获取是错误的，
