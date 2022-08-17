@@ -101,7 +101,8 @@ usertrap(void)
     // ok
   } else {
     /* 现在指令错误也交给页错误处理了 */
-    info("pid is %d sepc is %lx scause is "rd("%s")" stval is %lx", p->pid, r_sepc(), riscv_cause2str(scause), r_stval());
+    info("pid is %d sepc is %lx scause is "rd("%s(%d)")" stval is %lx", p->pid, r_sepc(), riscv_cause2str(scause), scause, r_stval());
+    ER();
     p->killed = 1;
   }
 

@@ -29,12 +29,16 @@ struct context {
   uint64 s11;
 };
 
+struct pagevec;
 
 // Per-CPU state.
 struct cpu {
   int noff;                   // Depth of push_off() nesting.
   struct proc *proc;          // The process running on this cpu, or null.
   struct context context;     // swtch() here to enter scheduler().
+  struct pagevec *inactive_pvec;
+  struct pagevec *active_pvec;
+  int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
 };
 
@@ -75,7 +79,7 @@ struct cpu {
 extern struct cpu cpus[NUM_CORES];
 
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum procstate { UNUSED, USED, SLEEPING, DEEP_SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct fat_entry;
 // Per-process state
@@ -142,6 +146,7 @@ void            procinit(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            sleep(void*, struct spinlock*);
+void            sleep_deep(void *chan, struct spinlock *lk);
 void            userinit(void);
 int             waitpid(int cid, uint64 addr, int options);
 void            wakeup(void*);
@@ -160,4 +165,6 @@ void            wake_up_process(proc_t *p);
 void            sig_send(proc_t *p, int signum);
 int             freechild();
 
+struct pagevec* my_inactive_pvec();
+struct pagevec* my_active_pvec();
 #endif

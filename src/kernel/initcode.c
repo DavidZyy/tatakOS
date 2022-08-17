@@ -5,11 +5,12 @@
 void run(char *argv[]); 
 void printf(const char *fmt, ...);
 
-void run(char *argv[]);
+void __run(char *argv[]);
 
-#define shell(...) {char *__cmd[] = {"busybox", "sh", __VA_ARGS__};run(__cmd);}
-#define lua(...) {char *__cmd[] = {"lua", __VA_ARGS__};run(__cmd);}
-#define lmbench(...) {char *__cmd[] = {"lmbench_all", __VA_ARGS__};run(__cmd);}
+#define run(...) {char *__cmd[] = {##__VA_ARGS__, 0};__run(__cmd);}
+#define shell(...) {char *__cmd[] = {"busybox", "sh", ##__VA_ARGS__, 0};__run(__cmd);}
+#define lua(...) {char *__cmd[] = {"lua", ##__VA_ARGS__, 0};__run(__cmd);}
+#define lmbench(...) {char *__cmd[] = {"lmbench_all", ##__VA_ARGS__, 0};__run(__cmd);}
 
 
 __attribute__((section(".startup"))) 
@@ -22,22 +23,50 @@ void main() {
     openat(-100, "/swap", O_RDWR | O_CREATE);
 
     memuse();
-    // int status;
-    char *argv[4];
-    argv[0] = "busybox";
-    // argv[1] = "du";
-    argv[1] = "sh";
-    // argv[1] = "var";
-    // argv[2] = "var";
-    // argv[2] = "busybox_testcode.sh";
-    // argv[2] = "lua_testcode.sh";
-    // argv[2] = "run-static.sh";
-    // argv[2] = "-lh";
-    argv[2] = 0;
-    argv[3] = 0;
-    
-    // argv[2] = 0;
+    shell();
+    shell("./busybox_testcode.sh");
+    shell("./lua_testcode.sh");
+    // shell("./lmbench_testcode.sh");
+    lmbench("lat_syscall", "-P", "1", "null");
+    lmbench("lat_syscall", "-P", "1", "read");
+    lmbench("lat_syscall", "-P", "1", "write");
+    close(openat(-100, "/var/tmp/lmbench", 00000100));
+    lmbench("lat_syscall", "-P", "1", "stat", "/var/tmp/lmbench");
+    lmbench("lat_syscall", "-P", "1", "fstat", "/var/tmp/lmbench");
+    lmbench("lat_syscall", "-P", "1", "open", "/var/tmp/lmbench");
+    lmbench("lat_select", "-P", "1", "-n", "100", "file");
+    lmbench("lat_sig", "-P", "1", "install");
+    lmbench("lat_sig", "-P", "1", "catch");
+    lmbench("lat_sig", "-P", "1", "prot", "lat_sig");
+    lmbench("lat_pipe", "-P", "1");
+    lmbench("lat_proc", "-P", "1", "fork");
+    lmbench("lat_proc", "-P", "1", "exec");
+    lmbench("lat_proc", "-P", "1", "shell");
+    lmbench("lmdd", "label=File /var/tmp/XXX write bandwidth:", "of=/var/tmp/XXX", "move=1m", "fsync=1", "print=3");
+    // lmbench("lat_pagefault", "-P", "1", "/var/tmp/XXX");
+    lmbench("lat_mmap", "-P", "1", "512k", "/var/tmp/XXX");
+    lmbench("lat_fs", "/var/tmp");
+    lmbench("bw_pipe", "-P", "1");
+    lmbench("bw_file_rd", "-P", "1", "512k", "io_only", "/var/tmp/XXX");
+    lmbench("bw_file_rd", "-P", "1", "512k", "open2close", "/var/tmp/XXX");
+    lmbench("bw_mmap_rd", "-P", "1", "512k", "mmap_only", "/var/tmp/XXX");
+    lmbench("bw_mmap_rd", "-P", "1", "512k", "open2close", "/var/tmp/XXX");
+    lmbench("bw_mmap_rd", "-P", "1", "512k", "open2close", "/var/tmp/XXX");
+    // lmbench("lat_ctx", "-P", "1", "-s", "32", "2", "4", "8", "16", "24", "32", "64", "96");
 
+
+    // # lmbench_all lat_ctx -P 1 -s 32 2 4 8 16 24 32 64 96 # no result?
+    // char *busybox[] = {"lmbench_all", "lat_syscall", "-P", "1", "null", 0};
+    // run(busybox);
+    // char *lua[] = {"busybox", "sh", "lua_testcode.sh", 0};
+    // run(lua);
+ 
+    memuse();
+    halt();
+    for(;;);
+}
+
+void __run(char *argv[]) {
     int npid = fork();
     if(npid < 0) {
         printf("fork failed");
