@@ -228,10 +228,12 @@ int handle_pagefault(uint64_t scause) {
             goto kernel_fail;
         }
         
+        disable_sum();
         if(__handle_pagefault(fault, p, vma, rva) == -1) {
             info("pagefault handle fault");
             goto kernel_fail;
         }
+        enable_sum();
     } else {
         // debug("u");
         // if(rva == 0xF00022000) {

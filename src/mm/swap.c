@@ -86,6 +86,7 @@ void lru_cache_add(page_t *page)
 
 /**
  * 添加到active list cache
+ * 似乎一般是通过active_page添加到active list上的。
  */
 void lru_cache_add_active(page_t *page)
 {

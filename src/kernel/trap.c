@@ -183,16 +183,7 @@ kerneltrap(ktf_t *context)
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
   proc_t *p = myproc();
-  
-  uint64_t stval = read_csr(stval);
-    // uint64_t rva = PGROUNDDOWN(read_csr(stval));
-  uint64_t rva = PGROUNDDOWN(stval);
-
-  stval += 100;
-  if(rva == 1)
-    printf("1");
-
-  
+    
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
 

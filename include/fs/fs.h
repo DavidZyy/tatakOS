@@ -68,6 +68,8 @@ struct fat_entry {
 
     /* 链表，串进超级块的dirty链表或者io链表中 */
     list_head_t e_list;
+
+    list_head_t e_lru;
 };
 
 typedef struct fat_entry entry_t;

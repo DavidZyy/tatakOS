@@ -31,7 +31,7 @@
 #include "config.h"
 
 struct scan_control {
-	/* Ask refill_inactive_list, or shrink_inactive_list to scan this many pages */
+	/* Ask shrink_active_list, or shrink_inactive_list to scan this many pages */
 	/* 在shrink_zone中设置 */
 	unsigned long nr_to_scan;
 
@@ -242,34 +242,34 @@ static void shrink_inactive_list(zone_t *zone, struct scan_control *sc){
   LIST_HEAD(page_list);
 	struct pagevec pvec;
 	int max_scan = sc->nr_to_scan;
+  page_t *page;
 
 	pagevec_init(&pvec);
 
 	lru_add_drain();
 	spin_lock(&zone->lru_lock);
   while(max_scan > 0){
-    page_t *page;
-	int nr_taken = 0;
-	int nr_scan = 0;
-	int nr_freed;
+		int nr_taken = 0;
+		int nr_scan = 0;
+		int nr_freed;
 
     while (nr_scan++ < SWAP_CLUSTER_MAX && !list_empty(&zone->inactive_list)) {
-      	page = lru_to_page(&zone->inactive_list);
-      	if(!TestClearPageLRU(page))
-        ER();
-      	list_del(&page->lru);
-      	/* 说明ref前为0 */
-      	if (page_refcnt(page) == 0) {
-			/*
-			* It is being freed elsewhere
-			*/
-			SetPageLRU(page);
-			list_add(&page->lru, &zone->inactive_list);
-			continue;
+      page = lru_to_page(&zone->inactive_list);
+      if(!TestClearPageLRU(page))
+      	ER();
+      list_del(&page->lru);
+      /* 说明ref前为0 */
+      if (page_refcnt(page) == 0) {
+				/*
+				* It is being freed elsewhere
+				*/
+				SetPageLRU(page);
+				list_add(&page->lru, &zone->inactive_list);
+				continue;
 	  	}
-		get_page(page);
-      	list_add(&page->lru, &page_list);
-      	nr_taken++;
+			get_page(page);
+      list_add(&page->lru, &page_list);
+      nr_taken++;
     }
     zone->nr_inactive -= nr_taken;
     // zone->pages_scanned += nr_scan;
@@ -328,7 +328,7 @@ done:
  * But we had to alter page->flags anyway.
  */
 static void
-refill_inactive_list(zone_t *zone, struct scan_control *sc){
+shrink_active_list(zone_t *zone, struct scan_control *sc){
   int pgmoved;
 	int pgdeactivate = 0;
 	int pgscanned = 0;
@@ -378,6 +378,18 @@ refill_inactive_list(zone_t *zone, struct scan_control *sc){
 
   /* linux中用到了一些启发式（heuristic）方法来计算swap tendency，从而决定是否回收mmaped页
 			(reclaim_mmaped) */
+#ifdef RMAP
+	/*
+	 * `distress' is a measure of how much trouble we're having reclaiming
+	 * pages.  0 -> no problems.  100 -> great trouble.
+	 */
+	int distress = 100 >> sc->priority;
+
+	/* 这里做了简化，还要计算mmaped的页占总页的数量 */
+
+	if(distress > 0)
+		reclaim_mapped = 1;
+#endif
   
   /* 第二次遍历l_hold，把页移到l_active或者l_inactive */
   while(!list_empty(&l_hold)){
@@ -386,7 +398,7 @@ refill_inactive_list(zone_t *zone, struct scan_control *sc){
     /* 目前没有实现swap的功能，采取的回收策略是映射到用户空间的页(page->_mapcount > 0)一律不回收 */
 #ifdef RMAP
     if(page_mapped(page)){
-			if(!reclaim_mapped)
+			if(reclaim_mapped)
       	list_add(&page->lru, &l_active);
       continue;
     }
@@ -468,7 +480,7 @@ shrink_zone(struct zone *zone, struct scan_control *sc){
 			sc->nr_to_scan = min(nr_to_scan_active, SWAP_CLUSTER_MAX);
 			nr_to_scan_active -= sc->nr_to_scan;
 			/* 从active list回收页到inactive list */
-			refill_inactive_list(zone, sc);
+			shrink_active_list(zone, sc);
 		}
 
 		if(nr_to_scan_inactive){
@@ -538,36 +550,83 @@ static void needpool(entry_t pool[NENTRY]) {
 void writeback_entrys_and_shrink_pagecache(struct writeback_control *wbc);
 void remove_put_pages_in_pagecache(entry_t *entry);
 extern atomic_t used;
+extern fat32_t *fat;
+
+/**
+ * 优先回收pagecache中没有被mmaped的页。
+ * 1. 文件已经关闭，但是pagecache还没有释放的entry，entry的i_mappIng（pagecache）无用了，可以直接释放。
+ * 2. 文件未关闭，可以把page从pagecache中移除并释放，但是不能释放i_mapping，因为可能正是使用此entry的i_mapping的内存不足时
+ * 		来到这里的，释放后会出错。
+ */
+void reclaim_pages_from_pagecaches(){
+  entry_t *entry;
+
+  acquire(&fat->cache_lock);
+
+  list_for_each_entry_reverse(entry, &fat->fat_lru, e_lru){
+		if(!entry->i_mapping)
+			continue;
+
+		/* 如果已经上锁了，说明可能是在读写此entry的时候内存不足来到这里的，此时锁已经被持有，获得会失败，那么跳过此entry。 */
+		if(entry->lock.locked)
+			continue;
+
+		/* 这个锁似乎不能上（或者这个entry正在写回磁盘的话上锁，在内存中读写它不上锁） */
+		acquiresleep(&entry->lock);
+
+		if(entry->dirty){
+			release(&fat->cache_lock);
+   		writeback_single_entry(entry);
+  		acquire(&fat->cache_lock);
+		}
+
+		if(entry->ref == 0){
+			/* 已经被关闭的文件，但是i_mapping还没有释放，释放pagecache。 */
+			free_mapping(entry);
+		}
+		else {	
+			/* 未关闭的文件，缩小pagecache（put未mmaped的page）*/
+    	remove_put_pages_in_pagecache(entry);
+		}
+
+		releasesleep(&entry->lock);
+	}
+
+	release(&fat->cache_lock);
+}
 /*
  * 唤醒写回线程。写回更多的页。
  * 未mmaped 的 pagecache现在不通过lru回收，而通过释放回收。
+ * 1.释放ref为0的entry。
+ * 2.写回dirty的entry，回收pagecache。
+ * 3.回收非dirty entry的pagecache。
+ * 4.lru链表。
  */
 void free_more_memory(void)
 {
+	int u1, u2;
   /* 启动bdflush写回 */
 	/* 是否会出现两个线程写回一个页的情况？ */
 	/* 尝试释放所有的pagecache */
-  int u1 = atomic_get(&used);
-	writeback_entrys_and_shrink_pagecache(NULL);
-	// ER();
-	// wakeup_bdflush(1024);
-	#ifdef TODO
-	todo("before free pages, write back some entry, and free");
-	#endif
-	// yield();
- extern entry_t pool[NENTRY];
- for(int i = NENTRY-1; i >= 0; i--){
-	entry_t * entry = &pool[i];
-	if(!entry->dirty && entry->i_mapping){
-		/* 如果已经上锁了，说明可能是在读写此entry的时候内存不足来到这里的，那么跳过此entry */
-		if(entry->lock.locked)
-			continue;
-		elock(entry);
-		remove_put_pages_in_pagecache(entry);
-		eunlock(entry);
-	}
- }
-	int u2 = atomic_get(&used);
+  u1 = atomic_get(&used);
+// 	writeback_entrys_and_shrink_pagecache(NULL);
+// 	// ER();
+// 	// wakeup_bdflush(1024);
+// 	// yield();
+//  extern entry_t pool[NENTRY];
+//  for(int i = NENTRY-1; i >= 0; i--){
+// 	entry_t * entry = &pool[i];
+// 	if(!entry->dirty && entry->i_mapping){
+// 		/* 如果已经上锁了，说明可能是在读写此entry的时候内存不足来到这里的，那么跳过此entry */
+// 		if(entry->lock.locked)
+// 			continue;
+// 		elock(entry);
+// 		remove_put_pages_in_pagecache(entry);
+// 		eunlock(entry);
+// 	}
+//  }
+	reclaim_pages_from_pagecaches();
+	u2 = atomic_get(&used);
 	if(u1 - u2 > SWAP_CLUSTER_MAX)
 		return;
 //  needpool(pool);

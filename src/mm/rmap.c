@@ -164,7 +164,7 @@ static int try_to_unmap_one(page_t *page, pte_addr_t paddr)
 	page_remove_rmap(page, paddr);
 #ifdef SWAP
 	if(PageSwapCache(page)){
-		*ptep = page->index;
+		*ptep = (page->index) << 10;
 	}
 #endif
 #endif

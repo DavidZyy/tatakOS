@@ -213,8 +213,6 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
 static inline int test_and_set_bit_lock(
 	unsigned long nr, volatile unsigned long *addr)
 {
-	if((unsigned long)addr < 0x1000)
-		for(;;);
 	return __test_and_op_bit_ord(or, __NOP, nr, addr, .aq);
 }
 

@@ -713,6 +713,7 @@ forkret(void)
 
     extern fat32_t *fat;
     fat_mount(ROOTDEV, &fat);
+    fs_init();
     p->cwd = namee(NULL, "/");
     // // init dir...
     // entry_t *tmp = create(fat->root, "/tmp", T_DIR);

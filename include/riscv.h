@@ -106,7 +106,7 @@ extern void pop_off(void);
 extern int printf_(const char* format, ...);
   /* 在特权级1.9版本中，SUM位为PUM为，其功能位与SUM作用相反 */
 static inline void enable_sum() {
-  // push_off();
+  push_off();
   #if PRIVILEGE_VERSION == PRIVILEGE_VERSION_1_12
   set_csr(sstatus, SSTATUS_SUM);
   #elif PRIVILEGE_VERSION == PRIVILEGE_VERSION_1_9
@@ -124,7 +124,7 @@ static inline void disable_sum() {
   #else 
   #error "disable_sum"
   #endif
-  // pop_off();
+  pop_off();
 }
 
 

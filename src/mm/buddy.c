@@ -252,6 +252,10 @@ void buddy_free(void *pa) {
   /* 不应该放在这里 */
   // if(!list_is_head(&page->lru, &page->lru))
     // del_page_from_lru(&memory_zone, page);
+  
+  /* 回收前应该已经清除了所有状态，这里做个检查，好找bug */
+  if(page->flags > 0)
+    ER();
   /* 回收page时清除其状态 */
   reset_page(page);
 

@@ -150,15 +150,16 @@ int exec(char *path, char **argv, char **envp) {
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
 
-// #ifdef SHARE_LOAD
-//   proc_t *same_proc = NULL,  *cur = NULL;
-//   for(cur = proc; cur < &proc[NPROC]; cur++){
-//     // if(cur->exe == p->exe && cur != p){
-//     if(strncmp(cur->name, p->name, 20) == 0 && cur != p){
-//       same_proc = cur;
-//       break;
-//     }
-//   }
+// #ifndef LAZY_LOAD
+  /* 检测是否之前已经有相同的程序加载过了 */
+  // proc_t *same_proc = NULL,  *cur = NULL;
+  // for(cur = proc; cur < &proc[NPROC]; cur++){
+  //   // if(cur->exe == p->exe && cur != p){
+  //   if(strncmp(cur->name, p->name, 20) == 0 && cur != p){
+  //     same_proc = cur;
+  //     break;
+  //   }
+  // }
 // #endif
 
   uint64_t aux[AUX_CNT][2];
@@ -239,76 +240,36 @@ int exec(char *path, char **argv, char **envp) {
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    /* 建立好了，通过do_filemap_pages缺页异常来读，而不是do_anonymous_page，这样不
-      全部把程序加载到内存中而执行，可以执行大于内存的程序，MAP_SHARED */
-    // if(do_mmap(newmm, NULL, 0, ph.vaddr, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
-      // goto bad;
-    int vaddr = ph.vaddr;
-    int file_off = ph.off;
-    /* 或者直接页对齐 */
-    int map_off = file_off - (vaddr - PGROUNDDOWN(vaddr));
-    if(map_off < 0)
-      ER();
-
-    int flags = MAP_SHARED;
-    int len = ph.memsz;
-    if(ph.flags & PF_W){
-      flags = MAP_PRIVATE;
-      len = ph.filesz;
-      /* BSS段 */
-      // do_mmap(newmm, NULL, 0, PGROUNDUP(ph.vaddr+ph.filesz), ph.memsz-ph.filesz, flags, elf_map_prot(ph.flags));
-    if(do_mmap(newmm, NULL, 0, ph.vaddr, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
-      goto bad;
-    goto loadseg;
+  
+    if (ph.flags & PF_W){
+      // int flags = MAP_PRIVATE;
+      // len = ph.filesz;
+      /* .data，由于是页对齐的，可能会映射到一部分.bss的内容 */
+      // if(do_mmap(newmm, elf_file, PGROUNDDOWN(ph.off), ph.vaddr, ph.filesz, MAP_PRIVATE, elf_map_prot(ph.flags)) == -1)
+      //   ER();
+      /* .bss，采用匿名页映射，其实也可以和上面映射到一起 */
+      // if(do_mmap(newmm, NULL, 0, PGROUNDUP(ph.vaddr + ph.filesz), ph.memsz - ph.filesz, 0, elf_map_prot(ph.flags)) == -1)
+      //   ER();
+      if(do_mmap(newmm, NULL, 0, ph.vaddr, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
+        ER();
+      goto loadseg;
     }
+    else{
+      /* .text .rodata */
+      if(do_mmap(newmm, elf_file, PGROUNDDOWN(ph.off), ph.vaddr, ph.memsz, MAP_SHARED, elf_map_prot(ph.flags)) == -1)
+        ER();
 
-    if(do_mmap(newmm, elf_file, map_off, ph.vaddr, len, flags, elf_map_prot(ph.flags)) == -1)
-      ER();
-    
-    /* 不对，只要够大就行 */
-    ep->size_in_mem += ph.memsz;
-    continue;
-// #ifdef SHARE_LOAD
-//     if(same_proc){
-//       pagetable_t old = same_proc->mm->pagetable, new = p->mm->pagetable;
-//       pte_t *pte;
-//       uint64_t pa;
-//       uint prot;
-//       /* 具有写权限的段不能共享(或者使用类似cow的机制共享？) */
-//       if(ph.flags & PF_W)
-//         goto loadseg;
-//       /* 复制uvmcopy代码，把va复制为i了。 */
-//       for(int va = PGROUNDDOWN(ph.vaddr); va < ph.vaddr + ph.filesz; va += PGSIZE){
-//         if((pte = walk(old, va, 0)) == 0)
-//           continue;
-//         // if((*pte & PTE_V) == 0)
-//           // continue;
-
-
-//         pa = PTE2PA(*pte);
-
-//         // if(va == 0x121000)
-//         //   pa = (uint64_t)kalloc();
-
-//         sfence_vma_addr(va);
-//         get_page(pa); 
-
-//         prot = PTE_FLAGS(*pte);
-//         if(mappages(new, va, PGSIZE, pa, prot) != 0){
-//           /* Free pa here is ok for COW, because we have added refcnt for it */
-//           kfree((void *)pa);
-//           ER();
-//         }
-//       }
-
-//       // do_mmap(newmm, NULL, 0, 0x124000, 0x1000, 0, elf_map_prot(ph.flags));
-
-//       continue;
-//     }
-loadseg:
+// #ifndef LAZY_LOAD
+//       if(!same_proc)
+        // goto loadseg;
 // #endif
+    } 
+
+    continue;
+
+loadseg:
     if(loadseg(newmm, ph.vaddr, ep, ph.off, ph.filesz) < 0)
-      goto bad;
+      ER();
   }
   // debug("%s: loadseg done entry is %#lx", path, elfentry);
   // mmap_print(newmm);

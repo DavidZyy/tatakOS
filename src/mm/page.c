@@ -153,7 +153,9 @@ _uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int spec
       panic("uvmunmap: not a leaf");
     if(do_free){
       pa = PTE2PA(*pte);
-      kfree((void*)pa);
+      // kfree((void*)pa);
+      /* kfree不会把页从lru上移动下来，被坑了 */
+      put_page((uint64_t)pa);
     }
     *pte = 0;
 #ifdef RMAP
