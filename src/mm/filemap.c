@@ -438,6 +438,9 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
 retry:
   page = find_get_page(mapping, pgoff);
 
+  /* 因为下面要从lru中删除，所以 */
+  lru_add_drain();
+
 // TODO: 存在或不存在LRU链表是契税不确定的
   if(!page) {
     int rest = entry->size_in_mem - mapping->nrpages*PGSIZE;
@@ -451,7 +454,7 @@ retry:
     if(pgcnts < 1)
       ER();
     
-    if(pgcnts == 1){
+    if(pgcnts  == 1){
       // 不存在LRU
       pa = (uint64_t)kalloc();
       page = PATOPAGE(pa);

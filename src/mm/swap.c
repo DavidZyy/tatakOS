@@ -226,12 +226,16 @@ void pagevec_release(struct pagevec *pvec)
 	pagevec_reinit(pvec);
 }
 
+
+#ifdef RMAP
+#ifdef SWAP 
+
+int swap_slot_id;
+
 int get_swap_slot_id(){
 	return swap_slot_id++;
 }
 
-#ifdef RMAP
-#ifdef SWAP 
 extern fat32_t *fat;
 /**
  * add_to_swap - allocate swap space for a page

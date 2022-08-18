@@ -563,18 +563,27 @@ void reclaim_pages_from_pagecaches(){
 
   acquire(&fat->cache_lock);
 
-  list_for_each_entry_reverse(entry, &fat->fat_lru, e_lru){
-		if(!entry->i_mapping)
+	entry_t *prev = NULL;
+
+	/* 把entry从链表中删除 */
+  list_for_each_entry_reverse(entry, &fat->fat_file_lru, e_file_lru){
+		/* 如果是因为写回磁盘时内存不足来到这里，则不能对其进行操作 */
+		if(EntryWriteback(entry))
 			continue;
+
+		if (prev != NULL)
+			list_del_init(&prev->e_file_lru);
+
+		prev = entry;
 
 		/* 如果已经上锁了，说明可能是在读写此entry的时候内存不足来到这里的，此时锁已经被持有，获得会失败，那么跳过此entry。 */
-		if(entry->lock.locked)
-			continue;
+		// if(entry->lock.locked)
+			// continue;
 
 		/* 这个锁似乎不能上（或者这个entry正在写回磁盘的话上锁，在内存中读写它不上锁） */
-		acquiresleep(&entry->lock);
+		// acquiresleep(&entry->lock);
 
-		if(entry->dirty){
+		if(EntryDirty(entry)){
 			release(&fat->cache_lock);
    		writeback_single_entry(entry);
   		acquire(&fat->cache_lock);
@@ -589,8 +598,11 @@ void reclaim_pages_from_pagecaches(){
     	remove_put_pages_in_pagecache(entry);
 		}
 
-		releasesleep(&entry->lock);
+		// releasesleep(&entry->lock);
 	}
+
+	if (prev != NULL)
+		list_del_init(&prev->e_file_lru);
 
 	release(&fat->cache_lock);
 }

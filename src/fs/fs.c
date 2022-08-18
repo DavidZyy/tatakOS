@@ -25,8 +25,9 @@ void fs_init() {
   for(int i = 0; i < NENTRY; i++) {
     memset(&pool[i], 0, sizeof(entry_t));
     initsleeplock(&pool[i].lock, "pool_entry");
-    INIT_LIST_HEAD(&pool[i].e_list);
+    // INIT_LIST_HEAD(&pool[i].e_list);
     INIT_LIST_HEAD(&pool[i].e_lru);
+    INIT_LIST_HEAD(&pool[i].e_file_lru);
     /* 加入lru链表 */
     list_add(&pool[i].e_lru, &fat->fat_lru);
   }
@@ -145,6 +146,8 @@ static entry_t *eget(entry_t *parent, uint32_t clus_offset, dir_item_t *item, co
   if(item->attr == FAT_ATTR_FILE) {
     entry->i_mapping  = kzalloc(sizeof(struct address_space));
     entry->i_mapping->host = entry;
+    list_del_init(&entry->e_file_lru);
+    list_add(&entry->e_file_lru, &fat->fat_file_lru);
   }
   else{
     entry->i_mapping = NULL;
@@ -154,7 +157,7 @@ static entry_t *eget(entry_t *parent, uint32_t clus_offset, dir_item_t *item, co
   entry->clus_cnt = 0;
   entry->size_in_mem = entry->raw.size;
 
-  entry->dirty = 0;
+  entry->flags = 0;
   release(&fat->cache_lock);
 
 back:
@@ -244,8 +247,10 @@ static void __eput(entry_t *entry) {
       releasesleep(&entry->lock);
       acquire(&entry->fat->cache_lock);
       /* 忘加了，造成内存泄漏 */
-      if(entry->raw.attr == FAT_ATTR_FILE)
+      if(entry->raw.attr == FAT_ATTR_FILE){
         free_mapping(entry);
+        list_del_init(&entry->e_file_lru);
+      }
       goto no_writeback;
     }
 
@@ -269,15 +274,22 @@ static void __eput(entry_t *entry) {
 
         release(&entry->fat->cache_lock);
           /* 只单写一个entry，不要写其他entry */
-        if(entry->dirty) {
-          // writeback_single_entry_idx(entry - pool);
+        if(EntryDirty(entry)) {
+          /* pdflush 还没有用上 */
+          writeback_single_entry_idx(entry - pool);
           /* (entry - pool)/sizeof(entry_t)是错的！*/
           // pdflush_operation(writeback_single_entry_idx, (entry - pool));
         }
         acquire(&entry->fat->cache_lock);
 
-        /* 释放掉pagecache */
-        // free_mapping(entry);
+        /* 释放掉没有pagecache的i_mapping */
+        if(entry->i_mapping->nrpages == 0){
+          if(entry->i_mapping->page_tree.rnode != NULL)
+            ER();
+          free_mapping(entry);
+        }
+        list_del_init(&entry->e_file_lru);
+        list_add_tail(&entry->e_file_lru, &fat->fat_file_lru);
     }
 no_writeback:
     list_del_init(&entry->e_lru);
@@ -496,9 +508,10 @@ int writee(entry_t *entry, int user, uint64_t buff, off_t off, int n) {
   int newsize = off + ret;
   // /* 更改文件在父目录中的元数据 */
   if(ret > 0){
-    entry->dirty = 1;
-    if(list_empty(&entry->e_list))
-      list_add(&fat->fat_dirty, &entry->e_list);
+    // entry->dirty = 1;
+    SetEntryDirty(entry);
+    // if(list_empty(&entry->e_list))
+      // list_add(&fat->fat_dirty, &entry->e_list);
     /* update the file's size in mem */
     if(newsize > entry->raw.size) {
       entry->size_in_mem = newsize;

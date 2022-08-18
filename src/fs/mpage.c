@@ -394,6 +394,7 @@ void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_nod
       INIT_LIST_HEAD(&page->lru);
 
       list_add_tail(&page->lru, page_head);
+      page = NULL;
     }
   }
   else{
@@ -481,7 +482,8 @@ void remove_put_pages_in_pagecache(entry_t *entry){
     prev_page = cur_page;
   }
 
-  list_del(&prev_page->lru);
-  put_page(prev_page);
-
+  if(prev_page){
+    list_del(&prev_page->lru);
+    put_page(prev_page);
+  }
 }

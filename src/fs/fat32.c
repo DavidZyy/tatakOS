@@ -162,8 +162,9 @@ FR_t fat_mount(uint dev, fat32_t **ppfat) {
     *ppfat = fat;
 
     /* don't forget to initialize the list */
-    INIT_LIST_HEAD(&fat->fat_dirty);
+    // INIT_LIST_HEAD(&fat->fat_dirty);
     INIT_LIST_HEAD(&fat->fat_lru);
+    INIT_LIST_HEAD(&fat->fat_file_lru);
     return FR_OK;
 }
 

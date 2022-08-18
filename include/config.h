@@ -14,4 +14,4 @@
 #define READ_AHEAD_RATE 10
 
 /* 可使用的内存比率(减去预留的内存比率) */
-#define AVAILABLE_MEMORY_RATE 98
+#define AVAILABLE_MEMORY_RATE 95
