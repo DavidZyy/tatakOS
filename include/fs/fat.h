@@ -140,7 +140,10 @@ typedef struct _fat32_t {
 	/* added for entry write back to disk */
 	// list_head_t fat_dirty;   	/* 所有dirty的entry的链表 */
 	// list_head_t fat_io;				/* 所有进行io的entry的链表 */
+	/* 类型为file或dir的entry的lru链表 */
 	list_head_t fat_lru;
+	// /* 空闲entry的lru链表 */
+	// list_head_t fat_free;
 	list_head_t fat_file_lru;
 } fat32_t;
 

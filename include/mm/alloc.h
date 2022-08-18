@@ -16,6 +16,15 @@ uint64_t get_free_mem();
 void free_one_page(page_t *page);
 
 
+void *alloc_one_pagecache_page();
+void free_one_pagecache_page(void *page);
+
+void *alloc_one_anonymous_page();
+void free_one_anonymous_page(void *page);
+
+void *alloc_one_page_table_page();
+void free_one_page_table_page(void *addr);
+
 #define AF_KERNEL 0x0
 #define AF_USER 0x1
 

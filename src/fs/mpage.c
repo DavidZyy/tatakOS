@@ -360,7 +360,7 @@ void msync(uint64_t addr, uint64_t length, int flags){
       }
     }
 
-    write_pages(vma->map_file->ep, rwlist);
+    write_pages(vma->map_entry, rwlist);
 
     rest_cnts -= cnts;
   }
@@ -459,15 +459,18 @@ void remove_put_pages_in_pagecache(entry_t *entry){
   list_for_each_entry(cur_page, &page_head, lru){
     if(prev_page){
       list_del(&prev_page->lru);
-      put_page(prev_page);
+      // put_page(prev_page);
+      free_one_pagecache_page(prev_page);
     }
 
     if(!PageLocked(cur_page) || PageWriteback(cur_page)) 
       ER();
 
+#ifdef CHECK_BOUNDARY
 #ifdef RMAP
     if(page_mapped(cur_page))
       ER();
+#endif
 #endif
 
     remove_from_page_cache(cur_page);
@@ -484,6 +487,13 @@ void remove_put_pages_in_pagecache(entry_t *entry){
 
   if(prev_page){
     list_del(&prev_page->lru);
-    put_page(prev_page);
+    // put_page(prev_page);
+    free_one_pagecache_page(prev_page);
   }
+
+#ifdef CHECK_BOUNDARY
+  /* 链表没有释放完，说明释放错误 */
+  if(!list_empty(&page_head))
+    ER();
+#endif
 }

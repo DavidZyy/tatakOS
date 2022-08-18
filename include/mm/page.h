@@ -83,6 +83,7 @@ struct address_space;
 typedef struct _page_t {
     atomic_t refcnt;        
     
+    /* 下面这个结构体直接统一到flags里面？ */
     struct {
         uint8_t order : 4; // for BUDDY use lowest 4 bits only, max 14 (15 as invaild)
         uint8_t alloc : 2; // for BUDDY, acutally we use only one bit

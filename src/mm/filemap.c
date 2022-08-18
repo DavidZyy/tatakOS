@@ -141,7 +141,8 @@ void walk_free_rdt(struct radix_tree_node *node, uint8 height, uint8 c_h)
         // kfree(pa);
         if(page_mapped(page))
           ER();
-        put_page(page);
+        // put_page(page);
+        free_one_pagecache_page(page);
         // printf("pa: %p\n", pa);
         // print_buddy(); 
       }
@@ -186,7 +187,8 @@ void free_mapping(entry_t *entry)
   } else if(root->height == 0 && root->rnode){
     if(page_mapped((page_t *)root->rnode))
       ER();
-    put_page((page_t *)root->rnode);
+    // put_page((page_t *)root->rnode);
+    free_one_pagecache_page((page_t *)root->rnode);
   }
   /* free i_mapping */
   addr = entry->i_mapping;
@@ -213,7 +215,8 @@ void readahead(entry_t *entry, uint64_t index, int pg_cnt, int end_index, int lr
 
     if(find_page(entry->i_mapping, cur_index) == NULL){
       rw_page_t *read_page= kzalloc(sizeof(rw_page_t));
-      uint64_t cur_pa = (uint64_t)kalloc();
+      // uint64_t cur_pa = (uint64_t)kalloc();
+      uint64_t cur_pa = (uint64_t)alloc_one_pagecache_page();
       page_t *page = PATOPAGE(cur_pa);
       add_to_page_cache(page, entry->i_mapping, cur_index);
       if(lru_flag)
@@ -321,7 +324,8 @@ retry:
         ER();
 
       if(pgcnts == 1) {
-        pa = (uint64_t)kalloc();
+        // pa = (uint64_t)kalloc();
+        pa = (uint64_t)alloc_one_pagecache_page();
         page = PATOPAGE(pa);
 
         get_page(page);
@@ -379,7 +383,8 @@ uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint6
 
     page = find_get_lock_page(mapping, pg_id);
     if(!page){
-      pa = (uint64_t)kalloc();
+      // pa = (uint64_t)kalloc();
+      pa = (uint64_t)alloc_one_pagecache_page();
       page = PATOPAGE(pa);
 
       get_lock_page(page);
@@ -429,9 +434,9 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
   page_t *page;
   uint64 pa;
 
-  struct file *file = area->map_file;
-  address_space_t *mapping = file->ep->i_mapping;
-  entry_t *entry = mapping->host;
+  // struct file *file = area->map_file;
+  entry_t *entry = area->map_entry;
+  address_space_t *mapping = entry->i_mapping;
 
   /* address落在文件的pgoff页 */
   /* 之前area->offset的单位是字节，哪里会引发错误？ */
@@ -440,7 +445,7 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
   endoff = (area->len >> PAGE_CACHE_SHIFT) + area->offset;
   /* 文件最后一个index号 */
   // end_index = file->ep->raw.size >> PAGE_CACHE_SHIFT;
-  end_index = file_end_index(file->ep->raw.size);
+  end_index = file_end_index(entry->raw.size);
 
   if(pgoff > end_index || pgoff > endoff)
     ER();
@@ -471,7 +476,8 @@ retry:
     
     if(pgcnts == 1){
       // 不存在LRU
-      pa = (uint64_t)kalloc();
+      // pa = (uint64_t)kalloc();
+      pa = (uint64_t)alloc_one_pagecache_page();
       page = PATOPAGE(pa);
 
       get_page(page);
@@ -496,7 +502,8 @@ retry:
    * private mmap和shared mmap
    */
   if(area->flags & MAP_PRIVATE){
-    uint64_t pa0 = (uint64_t)kalloc();
+    // uint64_t pa0 = (uint64_t)kalloc();
+    uint64_t pa0 = (uint64_t)alloc_one_anonymous_page();
 #ifdef RMAP
     page_t *page0 = PATOPAGE(pa0);
     if (in_rmap_area(address))
@@ -551,7 +558,8 @@ int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address){
 
     page = find_get_page(mapping, index);
     if(!page){
-        pa = (uint64_t)kalloc();
+        // pa = (uint64_t)kalloc();
+        pa = (uint64_t)alloc_one_anonymous_page();
         page = PATOPAGE(pa);
         get_page(page);
         add_to_page_cache(page, mapping, index);

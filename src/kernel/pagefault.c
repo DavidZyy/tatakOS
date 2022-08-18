@@ -27,7 +27,8 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
     *pte &= ~PTE_COW;
   } else {
     char *mem;
-    if((mem = kalloc()) == 0) {
+    // if((mem = kalloc()) == 0) {
+    if((mem = alloc_one_anonymous_page()) == 0) {
       return -1;
     }
     // 复制页
@@ -122,7 +123,8 @@ static int do_swap_page(pte_t *pte, vma_t *vma, uint64_t address){
  * lazy allocation
  */
 static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
-    uint64_t newpage = (uint64_t) kzalloc(PGSIZE);
+    // uint64_t newpage = (uint64_t) kzalloc(PGSIZE);
+    uint64_t newpage = (uint64_t) alloc_one_anonymous_page();
 
     *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
 
@@ -164,7 +166,7 @@ int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
     /* 如果valid位不存在，意味着对应的页没有被map过（entry为0），或者不存在内存中（swap） */
     if(!pte_valid(entry)){
         if(pte_none(entry)){
-            if(vma->map_file)
+            if(vma->map_entry)
                 return do_filemap_page(pte, vma, rva);
             /* lazy allocation */
             return do_anonymous_page(pte, vma, rva);

@@ -119,11 +119,16 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
   while(!list_empty(page_list)){
     address_space_t *mapping;
     page_t *page;
+		void (*free_func)(void *addr);
 
     page = lru_to_page(page_list);
     list_del(&page->lru);
 		mapping = page->mapping;
 
+		if(mapping)
+			free_func = free_one_pagecache_page;
+		else
+			free_func = free_one_anonymous_page;
 		/* 检测有没有被lock，如果无则lock，否则不释放 */
     if(TestSetPageLocked(page))
       goto keep;
@@ -199,7 +204,8 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		if(PageLRU(page))
 			ER();
 		/* kfree页 */
-		put_page(page);
+		// put_page(page);
+		free_func(page);
 		continue;
 
 #ifdef RMAP
@@ -533,8 +539,11 @@ int try_to_free_pages(){
 			goto out;
 		}
 	}
-	if(priority < 0)
+
+	if(priority < 0){
+		print_page_state();
 		ERROR("out of memory!");
+	}
 	// total_scanned += sc.nr_scanned;
 	// total_reclaimed += sc.nr_reclaimed;
 

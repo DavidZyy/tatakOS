@@ -20,9 +20,22 @@
 
 page_t pages[PAGE_NUMS];
 struct spinlock reflock;
+struct page_state pg_state = {0,0,0,0,0,0,0,0};
 
 extern void wakeup(void *chan);
 extern void sleep(void *chan, struct spinlock *lk);
+
+uint64_t __read_page_state(uint64_t offset){
+  void *ptr = &pg_state;
+
+  return *((uint64_t *)(ptr + offset)); 
+}
+
+void __mod_page_state(uint64_t offset, uint64_t delta){
+  void *ptr = &pg_state;
+
+  *((uint64_t *)(ptr + offset)) += delta;
+}
 
 void reset_page(page_t *page){
   page->flags = 0;
@@ -64,6 +77,8 @@ int page_type(uint64_t pa) {
 }
 
 
+extern void *alloc_one_page_table_page();
+
 pte_t *__walk(pagetable_t pagetable, uint64 va, int alloc, int pg_spec) {
   if(va >= MAXVA)
     panic("walk");
@@ -73,7 +88,7 @@ pte_t *__walk(pagetable_t pagetable, uint64 va, int alloc, int pg_spec) {
     if(*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
-      if(!alloc || (pagetable = (pde_t*)kzalloc(PGSIZE)) == 0)
+      if(!alloc || (pagetable = (pde_t*)alloc_one_page_table_page()) == 0)
         return 0;
       *pte = PA2PTE(pagetable) | PTE_V;
     }
@@ -151,7 +166,16 @@ void __uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, in
       pa = PTE2PA(*pte);
       // kfree((void*)pa);
       /* kfree不会把页从lru上移动下来，被坑了 */
-      put_page((uint64_t)pa);
+      page_t *page = PATOPAGE(pa);
+      if(page->refcnt.counter == 1){
+        /* 这样区分是否准确，如果anonymous page在swap cache中呢？*/
+        if(page->mapping)
+          free_one_pagecache_page(page);
+        else
+          free_one_anonymous_page(page);
+      }
+      else
+        put_page(page);
     }
     *pte = 0;
 

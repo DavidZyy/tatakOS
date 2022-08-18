@@ -11,7 +11,7 @@
 
 #define __MODULE_NAME__ BUDDY
 #include "debug.h"
-
+#include "config.h"
 #define INVAIL_ORDER (0xf)
 
 #define PARTNER_NO(pgnum, order) ((pgnum) ^ (1 << (order)))
@@ -221,10 +221,17 @@ void *buddy_alloc(size_t size) {
   //   buddy_free(c);
   //   c += PGSIZE;
   // }
+  /* 内核栈是2页分配的 */
+// #ifdef CHECK_BOUNDARY
+//   /* 现在都是一页分配的 */
+//   if(oorder != 0)
+//     ER();
+// #endif
 
 
 
   atomic_add(&used, 1 << oorder);
+  sub_page_state(nr_buddy, 1 << oorder);
   return (void *) b;
 }
 
@@ -267,7 +274,15 @@ void buddy_free(void *pa) {
   b = (buddy_t *) pa;
   // release
   page->alloc = 0;
+
+// #ifdef CHECK_BOUNDARY
+//   /* 默认一次释放一个页 */
+//   if(page->order != 0)
+//     ER();
+// #endif
+
   atomic_add(&used, -(1 << page->order));
+  add_page_state(nr_buddy, 1 << page->order);
 
   // insert back
   acquire(&lists[page->order].lock);
@@ -342,7 +357,15 @@ void buddy_free_one_page(struct _page_t *page){
   b = (buddy_t *) pa;
   // release
   page->alloc = 0;
+
+#ifdef CHECK_BOUNDARY
+  /* 默认一次释放一个页 */
+  if(page->order != 0)
+    ER();
+#endif
+
   atomic_add(&used, -(1 << page->order));
+  inc_page_state(nr_buddy);
 
   // insert back
   acquire(&lists[page->order].lock);

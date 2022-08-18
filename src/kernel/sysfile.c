@@ -883,6 +883,7 @@ uint64 sys_mmap(void) {
     int fd;
     struct file *fp = NULL;
     struct proc* p = myproc();
+    entry_t *entry = NULL;
 
     if (argaddr(0, &addr) < 0 || argaddr(1, &len) < 0 ||
         argint(2, &prot) < 0 || argint(3, &flags) < 0 || argint(4, &fd) < 0 ||
@@ -890,12 +891,17 @@ uint64 sys_mmap(void) {
         return -1;
 
     fp = fdtbl_getfile(p->fdtable, fd);
+    if(fp && fp->type != T_FILE)
+        ER();
+
+    if(fp)
+        entry = fp->ep;
 
     // debug("addr is %#lx len is %#lx flags is %b prot is %b fd is %d",addr, len, flags, prot, fd);
 
     // if((addr = do_mmap(p->mm, fp, offset, addr, len, flags, prot | PROT_USER | PROT_READ | PROT_WRITE | PROT_EXEC))== -1)  {
     
-    if((addr = do_mmap(p->mm, fp, offset, addr, len, flags, prot | PROT_USER))== -1) {
+    if((addr = do_mmap(p->mm, entry, offset, addr, len, flags, prot | PROT_USER))== -1) {
         debug("mmap failure");
         return -1;
     }

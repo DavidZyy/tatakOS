@@ -209,6 +209,8 @@ found:
   
   INIT_LIST_HEAD(&p->head);
 
+  /* 内核栈没有纳入到回收中 */
+  add_page_state(nr_anonymous, 2);
   if((p->kstack = (uint64)kmalloc(KSTACK_SZ)) == 0) {
     debug("kstack alloc failure");
     goto bad;

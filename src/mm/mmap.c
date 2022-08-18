@@ -111,12 +111,15 @@ vma_t *vma_inter(mm_t *mm, uint64_t addr, uint64_t len) {
 // }
 
 
-void __do_mmap(mm_t *mm, struct file *fp, off_t foff, uint64_t addr, uint64_t len, int flags, int prot) {
+void __do_mmap(mm_t *mm, entry_t *entry, off_t foff, uint64_t addr, uint64_t len, int flags, int prot) {
     uint64_t end = addr + len;
     vma_t *vma;
 
-    if(fp)
-        filedup(fp);
+    // if(fp)
+        // filedup(fp);
+    if(entry)
+        edup(entry);
+
     // 不存在相交vma
     vma = vma_new();
     vma->raddr = addr;
@@ -124,7 +127,8 @@ void __do_mmap(mm_t *mm, struct file *fp, off_t foff, uint64_t addr, uint64_t le
     // vma->len = end - vma->addr;
     vma->len = PGROUNDUP(end - vma->addr);
     vma->flags = flags;
-    vma->map_file = fp;
+    // vma->map_file = fp;
+    vma->map_entry = entry;
     vma->prot = prot;
     /* 存储的是page index */
     vma->offset = foff >> PGSHIFT;
@@ -161,10 +165,10 @@ static uint64_t find_free_maparea(mm_t *mm, uint64_t len) {
 }
 
 
-uint64_t do_mmap(mm_t *mm, struct file *fp, off_t off, uint64_t addr, uint64_t len, int flags, int prot) {
+uint64_t do_mmap(mm_t *mm, entry_t *entry, off_t off, uint64_t addr, uint64_t len, int flags, int prot) {
     vma_t *vma;
     
-    flags = fp ? (flags & (~MAP_ANONYMOUS)) : (flags | MAP_ANONYMOUS);
+    flags = entry? (flags & (~MAP_ANONYMOUS)) : (flags | MAP_ANONYMOUS);
 
     if(addr == 0) {
         addr = find_free_maparea(mm, len);
@@ -199,7 +203,7 @@ uint64_t do_mmap(mm_t *mm, struct file *fp, off_t off, uint64_t addr, uint64_t l
         return -1;
     }
 
-    __do_mmap(mm, fp, off, addr, len, flags, prot);
+    __do_mmap(mm, entry, off, addr, len, flags, prot);
     
     release(&mm->mm_lock);
 
@@ -213,9 +217,11 @@ void do_unmap(mm_t *mm, uint64_t addr, int do_free) {
     if(vma) {
         uvmunmap(mm->pagetable, vma->addr, ROUND_COUNT(vma->len), do_free);
         vma_remove(mm, vma);
-        if(vma->map_file) {
-            fileclose(vma->map_file);
-        }
+        // if(vma->map_file) {
+        //     fileclose(vma->map_file);
+        // }
+        if(vma->map_entry)
+            eput(vma->map_entry);
         vma_free(&vma);
     }
     release(&mm->mm_lock);
@@ -230,7 +236,8 @@ uint64_t do_mmap_alloc(mm_t *mm, uint64_t addr, uint64_t len, int flags, int pro
     }
 
     for(a = PGROUNDDOWN(addr); a < addr + len; a += PGSIZE){
-        mem = kzalloc(PGSIZE);
+        // mem = kzalloc(PGSIZE);
+        mem = alloc_one_anonymous_page();
         if(mem == 0){
             goto bad;
         }
@@ -256,9 +263,11 @@ static void unmap_vmas(mm_t *mm) {
     list_for_each_entry_safe(vma, next, &mm->vma_head, head) {
         uvmunmap(mm->pagetable, vma->addr, ROUND_COUNT(vma->len), 1);   
         vma_remove(mm, vma);
-        if(vma->map_file) {
-            fileclose(vma->map_file);
-        }
+        // if(vma->map_file) {
+        //     fileclose(vma->map_file);
+        // }
+        if(vma->map_entry)
+            eput(vma->map_entry);
         vma_free(&vma);
     }
 }
@@ -267,7 +276,8 @@ static void unmap_vmas(mm_t *mm) {
 
 static inline int mmap_init(mm_t *mm) {
     initlock(&mm->mm_lock, "mmlock");
-    mm->pagetable = kzalloc(PGSIZE);
+    // mm->pagetable = kzalloc(PGSIZE);
+    mm->pagetable = alloc_one_page_table_page();
     INIT_LIST_HEAD(&mm->vma_head);
     if(mm->pagetable == NULL) {
         debug("stub1");
@@ -338,9 +348,11 @@ static int mmap_dup(mm_t *mm, mm_t *newmm) {
         }
         vma_insert(newmm, dup);
 
-        if(vma->map_file) {
-            filedup(vma->map_file);
-        }
+        // if(vma->map_file) {
+        //     filedup(vma->map_file);
+        // }
+        if(vma->map_entry)
+            edup(vma->map_entry);
 
         if(mm->ustack == vma)
             newmm->ustack = dup;

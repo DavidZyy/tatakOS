@@ -27,64 +27,29 @@
  * 记录页的状态，每个cpu一个
  */
 struct page_state {
-	unsigned long nr_dirty;		/* Dirty writeable pages */
-	unsigned long nr_writeback;	/* Pages under writeback */
-	unsigned long nr_unstable;	/* NFS unstable pages */
-	unsigned long nr_page_table_pages;/* Pages used for pagetables */
-	unsigned long nr_mapped;	/* mapped into pagetables */
-	unsigned long nr_slab;		/* In slab 我们使用的是slob */
-#define GET_PAGE_STATE_LAST nr_slab
+	uint64_t nr_dirty;		/* Dirty writeable pages */
+	uint64_t nr_writeback;	/* Pages under writeback */
+	uint64_t nr_mapped;	/* mapped into pagetables(包括所有的匿名页和部分的pagecache页，所以小于这两者之和) */
 
-	/*
-	 * The below are zeroed by get_page_state().  Use get_full_page_state()
-	 * to add up all these.
-	 */
-	unsigned long pgpgin;		/* Disk reads */
-	unsigned long pgpgout;		/* Disk writes */
-	unsigned long pswpin;		/* swap reads */
-	unsigned long pswpout;		/* swap writes */
-	unsigned long pgalloc_high;	/* page allocations */
 
-	unsigned long pgalloc_normal;
-	unsigned long pgalloc_dma;
-	unsigned long pgfree;		/* page freeings */
-	unsigned long pgactivate;	/* pages moved inactive->active */
-	unsigned long pgdeactivate;	/* pages moved active->inactive */
-
-	unsigned long pgfault;		/* faults (major+minor) */
-	unsigned long pgmajfault;	/* faults (major only) */
-	unsigned long pgrefill_high;	/* inspected in refill_inactive_zone */
-	unsigned long pgrefill_normal;
-	unsigned long pgrefill_dma;
-
-	unsigned long pgsteal_high;	/* total highmem pages reclaimed */
-	unsigned long pgsteal_normal;
-	unsigned long pgsteal_dma;
-	unsigned long pgscan_kswapd_high;/* total highmem pages scanned */
-	unsigned long pgscan_kswapd_normal;
-
-	unsigned long pgscan_kswapd_dma;
-	unsigned long pgscan_direct_high;/* total highmem pages scanned */
-	unsigned long pgscan_direct_normal;
-	unsigned long pgscan_direct_dma;
-	unsigned long pginodesteal;	/* pages reclaimed via inode freeing */
-
-	unsigned long slabs_scanned;	/* slab objects scanned */
-	unsigned long kswapd_steal;	/* pages reclaimed by kswapd */
-	unsigned long kswapd_inodesteal;/* reclaimed via kswapd inode freeing */
-	unsigned long pageoutrun;	/* kswapd's calls to page reclaim */
-	unsigned long allocstall;	/* direct reclaim calls */
-
-	unsigned long pgrotated;	/* pages rotated to tail of the LRU */
+	/* 下面五个互不相交，加起来等于总的页？ */
+	uint64_t nr_page_table_pages;/* Pages used for pagetables */
+	uint64_t nr_slob;		/* In slob */
+	uint64_t nr_buddy; /* (nr_free)在buddy中的free的页 */
+	uint64_t nr_pagecache; /* in pagecache */	
+	uint64_t nr_anonymous; /* 匿名页，stack, heap, private mmap */
 };
 
 typedef struct page_state page_state_t;
 
+uint64_t __read_page_state(uint64_t offset);
+void __mod_page_state(uint64_t offset, uint64_t delta);
+
 #define read_page_state(member) \
-	// __read_page_state(offsetof(struct page_state, member))
+	__read_page_state(offsetof(struct page_state, member))
 
 #define mod_page_state(member, delta)	\
-	// __mod_page_state(offsetof(struct page_state, member), (delta))
+	__mod_page_state(offsetof(struct page_state, member), (delta))
 
 #define inc_page_state(member)	mod_page_state(member, 1UL)
 #define dec_page_state(member)	mod_page_state(member, 0UL - 1)

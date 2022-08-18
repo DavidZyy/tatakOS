@@ -31,6 +31,7 @@ static inline void *__alloc_one_page() {
 	void *new = buddy_alloc(PGSIZE);
 	if(new)
 		mark_page((uint64_t)new, ALLOC_SLOB);
+	inc_page_state(nr_slob);
 	return new;
 }
 
@@ -39,6 +40,7 @@ static inline void __free_one_page(void *addr) {
 	unmark_page((uint64_t)addr, ALLOC_SLOB);
 	/* 这里改位put_page，其检测到page refcnt为0自动释放 */
 	buddy_free(addr);
+	dec_page_state(nr_slob);
 }
 
 

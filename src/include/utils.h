@@ -79,6 +79,7 @@ void print_argv(char **argv);
 void print_zone_list_info(struct zone *zone);
 struct pages_be_found_head;
 void print_pages_be_found(struct pages_be_found_head *pg_head);
+void print_page_state();
 
 #define todo(str)  TD(str, __FILE__, __func__, __LINE__)
 #define get_order(x) luaO_log2(x)

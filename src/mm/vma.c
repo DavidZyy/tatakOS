@@ -22,8 +22,8 @@ void vma_print(vma_t *vma) {
         perm[1] = vma->prot & PROT_WRITE ? 'w' : '-';
         perm[2] = vma->prot & PROT_EXEC ? 'x' : '-';
         perm[3] = vma->prot & PROT_USER ? 'u' : '-';
-        if(vma->map_file) {
-            filename = vma->map_file->ep->name;
+        if(vma->map_entry) {
+            filename = vma->map_entry->name;
         }
         printf("vma@%#lx: %#lx--%#lx len: %#lx %s %s\n", vma, vma->addr, vma->addr + vma->len, vma->len, perm, filename);
     }

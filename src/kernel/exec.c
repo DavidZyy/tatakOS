@@ -107,28 +107,28 @@ static uint64_t loadinterp(mm_t *mm) {
 
 }
 
-/* 在哪里释放f？ */
-file_t *open_exe(entry_t *elf){
-    struct file *f;
-    proc_t *p = myproc();
-    fdtable_t *tbl = p->fdtable;
-    int fd;
-    int omode =  O_RDWR;
+// /* 在哪里释放f？ */
+// file_t *open_exe(entry_t *elf){
+//     struct file *f;
+//     proc_t *p = myproc();
+//     fdtable_t *tbl = p->fdtable;
+//     int fd;
+//     int omode =  O_RDWR;
 
-    edup(elf);
-    f = filealloc();
-    // if ((f = filealloc()) == 0 || (fd = fdtbl_fdalloc(tbl, f, -1, omode)) < 0) {
-      // ER();
-    // }
-    // ER();
+//     edup(elf);
+//     f = filealloc();
+//     // if ((f = filealloc()) == 0 || (fd = fdtbl_fdalloc(tbl, f, -1, omode)) < 0) {
+//       // ER();
+//     // }
+//     // ER();
 
-    f->ep = elf;
-    f->readable = !(omode & O_WRONLY);
-    f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
-    f->type = FD_ENTRY;
-    f->off = 0;
-    return f;
-}
+//     f->ep = elf;
+//     f->readable = !(omode & O_WRONLY);
+//     f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+//     f->type = FD_ENTRY;
+//     f->off = 0;
+//     return f;
+// }
 
 extern struct proc proc[NPROC];
 int exec(char *path, char *argv[], char *envp[]) {
@@ -142,7 +142,7 @@ int exec(char *path, char *argv[], char *envp[]) {
   struct proc *p = myproc();
   mm_t *newmm;
   mm_t *oldmm = p->mm;
-  file_t *elf_file;
+  // file_t *elf_file;
 
   /**
    * 进程的新名字
@@ -188,7 +188,8 @@ int exec(char *path, char *argv[], char *envp[]) {
     return -1;
   }
 
-  if((ustackbase = (uint64)kalloc()) == 0) {
+  // if((ustackbase = (uint64)kalloc()) == 0) {
+  if((ustackbase = (uint64)alloc_one_anonymous_page()) == 0) {
     debug("stack alloc failure");
     kfree(newmm);
     return -1;
@@ -205,8 +206,8 @@ int exec(char *path, char *argv[], char *envp[]) {
     return -1;
   }
 
-  /* 打开文件 */
-  elf_file = open_exe(ep);
+  // /* 打开文件 */
+  // elf_file = open_exe(ep);
 
   proc_switchmm(p, newmm);
 
@@ -259,7 +260,7 @@ int exec(char *path, char *argv[], char *envp[]) {
     }
     else{
       /* .text .rodata */
-      if(do_mmap(newmm, elf_file, PGROUNDDOWN(ph.off), ph.vaddr, ph.memsz, MAP_SHARED, elf_map_prot(ph.flags)) == -1)
+      if(do_mmap(newmm, ep, PGROUNDDOWN(ph.off), ph.vaddr, ph.memsz, MAP_SHARED, elf_map_prot(ph.flags)) == -1)
         ER();
 
 // #ifndef LAZY_LOAD
@@ -349,6 +350,7 @@ loadseg:
   memcpy((void *)ustack, argcv, sizeof(uint64) * argc);
   
 
+  /* 只分配一个页的内核栈？ */
   if(mappages(newmm->pagetable, USERSPACE_END - PGSIZE, PGSIZE, ustackbase, riscv_map_prot(newmm->ustack->prot)) == -1) {
     ER();
   }

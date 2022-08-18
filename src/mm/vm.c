@@ -28,7 +28,7 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 void
 kvminit(void)
 {
-  kernel_pagetable = (pagetable_t)kzalloc(PGSIZE);
+  kernel_pagetable = alloc_one_page_table_page();
   nxt_mapid = 0;
   // map kernel text executable and read-only.
   kvmmap(KERN_BASE, KERN_BASE, (uint64)etext-KERN_BASE, PROT_READ | PROT_EXEC, PGSPEC_NORMAL);
@@ -165,7 +165,7 @@ void freewalk(pagetable_t pagetable) {
   }
   /* memset 放在kfree前没事 */
     // memset(pagetable, 0, PGSIZE);
-  kfree((void*)pagetable);
+  free_one_page_table_page((void*)pagetable);
 }
 
 

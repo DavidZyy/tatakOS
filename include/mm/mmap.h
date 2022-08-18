@@ -10,6 +10,7 @@
 #define PAGECACHE_TAG_DIRTY 0
 #define PAGECACHE_TAG_WRITEBACK 1
 
+struct fat_entry;
 /* 用于描述特定一段内存区域（段） */
 struct vma{
   uint64 addr;
@@ -24,7 +25,8 @@ struct vma{
   uint64 raddr;
   list_head_t head; /* 用于串联VMA结构 */
 
-  struct file *map_file;
+  // struct file *map_file;
+  struct fat_entry *map_entry;
 };
 
 typedef struct vma vma_t;
@@ -81,7 +83,7 @@ void vma_free(vma_t **vma);
 // int mmap_init(mm_t *mm);
 mm_t *mmap_new();
 void mmap_free(mm_t **pmm);
-uint64_t do_mmap(mm_t *mm, struct file *fp, off_t off, uint64_t addr, uint64_t len, int flags, int prot);
+uint64_t do_mmap(mm_t *mm, struct fat_entry *, off_t off, uint64_t addr, uint64_t len, int flags, int prot);
 uint64_t do_mmap_alloc(mm_t *mm, uint64_t addr, uint64_t len, int flags, int prot);
 void do_unmap(mm_t *mm, uint64_t addr, int do_free);
 vma_t *vma_find(mm_t *mm, uint64 addr);

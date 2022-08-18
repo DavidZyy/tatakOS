@@ -162,6 +162,8 @@ extern void print_mapped_pages();
 // 基于中断，用于字符回显，以及存储字符到缓存
 //
 extern void buddy_print_free();
+extern void print_page_state();
+
 void
 consoleintr(char c)
 {
@@ -171,11 +173,9 @@ consoleintr(char c)
     procdump();
     buddy_print_free();
     break;
-#ifdef RMAP
   case C('L'):
-    print_mapped_pages();
+    print_page_state();
     break;
-#endif
   case C('U'):  // Kill line.
     while(cons.e != cons.w &&
           cons.buf[(cons.e-1) % INPUT_BUF] != '\n'){

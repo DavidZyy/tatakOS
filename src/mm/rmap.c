@@ -238,6 +238,7 @@ out:
  *
  * Add a new pte reverse mapping to a page.
  * The caller needs to hold the mm->page_table_lock.
+ * 需要page中不存在ptep才能保证正确性（mapcount）。
  */
 void page_add_rmap(page_t *page, pte_t *ptep) {
 	pte_chain_t *cur_pte_chain;
@@ -298,6 +299,7 @@ out:
  * after that the caller can clear the page table entry and free
  * the page.
  * Caller needs to hold the mm->page_table_lock.
+ * 需要page中一定存在ptep才能保证正确性（mapcount）。
  */
 void page_remove_rmap(page_t *page, pte_t *ptep){
 	pte_addr_t pte_paddr = ptep_to_paddr(ptep);

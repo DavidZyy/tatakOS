@@ -164,3 +164,40 @@ uint64_t get_total_mem() {
 uint64_t get_free_mem() {
     return buddy_getfree();
 }
+
+void *alloc_one_pagecache_page(){
+  inc_page_state(nr_pagecache);
+  return kzalloc(PGSIZE);
+}
+
+/* 释放使用的是页指针 */
+void free_one_pagecache_page(void *page){
+  dec_page_state(nr_pagecache);
+  /* 原来freewalk中用的是kfree */
+  put_page((page_t *)page);
+}
+
+
+void *alloc_one_anonymous_page(){
+  inc_page_state(nr_anonymous);
+  return kzalloc(PGSIZE);
+}
+
+/* 释放使用的是页指针 */
+void free_one_anonymous_page(void *page){
+  dec_page_state(nr_anonymous);
+  /* 原来freewalk中用的是kfree */
+  put_page((page_t *)page);
+}
+
+void *alloc_one_page_table_page(){
+  inc_page_state(nr_page_table_pages);
+  return kzalloc(PGSIZE);
+}
+
+/* 释放使用的是页的物理地址 */
+void free_one_page_table_page(void *addr){
+  dec_page_state(nr_page_table_pages);
+  /* 原来freewalk中用的是kfree */
+  put_page((uint64_t)addr);
+}

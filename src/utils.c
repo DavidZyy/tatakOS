@@ -282,3 +282,33 @@ void print_chars(char *c, int n){
   }
   
 }
+
+extern struct page_state pg_state;
+
+void print_page_state(){
+  uint64_t sum = 0;
+  printf("\n");
+  printf(bl("nr_dirty:\t")"%d\n", pg_state.nr_dirty);
+  printf(bl("nr_writeback:\t")"%d\n", pg_state.nr_writeback);
+  printf(bl("nr_mapped:\t")"%d\n", pg_state.nr_mapped);
+
+  printf(grn("nr_page_table_pages:\t")"%d\n", pg_state.nr_page_table_pages);
+  sum += pg_state.nr_page_table_pages;
+
+  printf(grn("nr_slob:\t")"%d\n", pg_state.nr_slob);
+  sum += pg_state.nr_slob;
+
+  printf(grn("nr_pagecache:\t")"%d\n", pg_state.nr_pagecache);
+  sum += pg_state.nr_pagecache;
+  
+  printf(grn("nr_anonymous:\t")"%d\n", pg_state.nr_anonymous);
+  sum += pg_state.nr_anonymous;
+
+  printf(ylw("sum of last four:\t")"%d\n", sum);
+
+  printf(grn("nr_buddy:\t")"%d\n", pg_state.nr_buddy);
+  sum += pg_state.nr_buddy;
+
+  printf(ylw("sum of last five:\t")"%d\n", sum);
+  printf("\n");
+}
