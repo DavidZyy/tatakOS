@@ -197,7 +197,7 @@ void free_mapping(entry_t *entry)
 /**
  * 从entry的index页开始，读取pg_cnt个页，加入到pagecache和lru
  */
-void readahead(entry_t *entry, uint64_t index, int pg_cnt, int lru_flag){
+void readahead(entry_t *entry, uint64_t index, int pg_cnt, int end_index, int lru_flag){
   int i;
   rw_page_list_t *pg_list = kzalloc(sizeof(rw_page_list_t));
   assert(pg_list);
@@ -208,6 +208,9 @@ void readahead(entry_t *entry, uint64_t index, int pg_cnt, int lru_flag){
 
 
   for(i = 0; i < pg_cnt; i++){
+    if(cur_index > end_index)
+      break;
+
     if(find_page(entry->i_mapping, cur_index) == NULL){
       rw_page_t *read_page= kzalloc(sizeof(rw_page_t));
       uint64_t cur_pa = (uint64_t)kalloc();
@@ -230,6 +233,7 @@ void readahead(entry_t *entry, uint64_t index, int pg_cnt, int lru_flag){
         pg_list->tail->next = read_page;
         pg_list->tail = read_page;
       }
+      pg_list->nr_pages++;
     }
   }
 
@@ -249,6 +253,10 @@ int cal_readahead_page_counts(int rest){
       int u = atomic_get(&used);
       int pgcnts = min(remain, DIV_ROUND_UP((total - u), READ_AHEAD_RATE));
       return pgcnts;
+}
+
+int file_end_index(uint64_t file_size){
+  return (ROUNDUP(file_size, PGSIZE) >> PGSHIFT)-1;
 }
 
 /**
@@ -278,7 +286,8 @@ int do_generic_mapping_read(struct address_space *mapping, int user, uint64_t bu
   // file_size = E_FILESIZE(mapping->host);
   file_size = mapping->host->size_in_mem;
   /* the last page index of a file */
-  end_index = file_size >> PGSHIFT;
+  // end_index = file_size >> PGSHIFT;
+  end_index = file_end_index(file_size);
 
   while (rest > 0)
   {
@@ -322,7 +331,7 @@ retry:
       }
       else{
         /* 发挥连续读多块的优势，减小I/O次数 */
-        readahead(entry, index, pgcnts, 1);
+        readahead(entry, index, pgcnts, end_index, 1);
         goto retry;
       }
     }
@@ -416,7 +425,7 @@ uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint6
  * 类似于do_generic_mapping_read
  */
 int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
-  uint64 pgoff, endoff, size;
+  uint64 pgoff, endoff, end_index;
   page_t *page;
   uint64 pa;
 
@@ -429,10 +438,11 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
   pgoff = ((address - area->addr) >> PAGE_CACHE_SHIFT) + area->offset;
   /* area所包含的最后一页 */
   endoff = (area->len >> PAGE_CACHE_SHIFT) + area->offset;
-  /* 文件的总页数， 页号为（0 ~ size-1）*/
-  size = ROUNDUP(file->ep->size_in_mem, PAGE_CACHE_SIZE) >> PAGE_CACHE_SHIFT;
+  /* 文件最后一个index号 */
+  // end_index = file->ep->raw.size >> PAGE_CACHE_SHIFT;
+  end_index = file_end_index(file->ep->raw.size);
 
-  if(pgoff >= size || pgoff > endoff)
+  if(pgoff > end_index || pgoff > endoff)
     ER();
 
 retry:
@@ -451,10 +461,15 @@ retry:
     //   pgcnts = entry->size_in_mem / PGSIZE;
     // }
 
-    if(pgcnts < 1)
+    /* 即rest需要大于0 */
+    if(pgcnts < 1){
+#ifdef CHECK_BOUNDARY
       ER();
+#endif
+      pgcnts = 1;
+    }
     
-    if(pgcnts  == 1){
+    if(pgcnts == 1){
       // 不存在LRU
       pa = (uint64_t)kalloc();
       page = PATOPAGE(pa);
@@ -464,7 +479,7 @@ retry:
       add_to_page_cache(page, mapping, pgoff); 
     }
     else{
-      readahead(entry, pgoff, pgcnts, 0);
+      readahead(entry, pgoff, pgcnts, end_index, 0);
       goto retry;
     }
   }

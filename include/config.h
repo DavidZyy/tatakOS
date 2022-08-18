@@ -6,12 +6,13 @@
 /* 是否开启swap，如果开启swap，需要先开启rmap(SWAP是建立在RMAP的基础上的，开启了swap，就默认开启了rmap) */
 #define SWAP
 
-/* 把页映射到pagecache上，按需加载，占用内存更小，但是速度慢 */
-// #define LAZY_LOAD
-
 /***************参数****************/
-/* 最大readahead页数占当前空余内存的页数 */
+/* 最大readahead页数占当前空余内存的页数，百分率(%) */
 #define READ_AHEAD_RATE 10
 
-/* 可使用的内存比率(减去预留的内存比率) */
+/* 可使用的内存百分率(%)(减去预留的内存比率) */
 #define AVAILABLE_MEMORY_RATE 95
+
+/* 开启check boundary的情况下，会对一些边界值做更为严格的检查，用于debug，关闭后忽略掉一些
+  非必要的边界值问题 */
+#define CHECK_BOUNDARY

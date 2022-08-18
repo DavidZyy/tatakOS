@@ -23,7 +23,7 @@ void main() {
     openat(-100, "/swap", O_RDWR | O_CREATE);
 
     memuse();
-    // shell();
+    shell();
     shell("./busybox_testcode.sh");
     shell("./lua_testcode.sh");
     lmbench("lat_syscall", "-P", "1", "null");

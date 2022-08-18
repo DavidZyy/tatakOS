@@ -53,7 +53,8 @@ char buff[BUF_SIZE];
 
 
 void gettime(ts_t *ts) {
-    syscall(NR_clock_gettime, 0, ts);
+    // syscall(NR_clock_gettime, 0, ts);
+    syscall(113, 0, ts);
 }
 
 int main() {

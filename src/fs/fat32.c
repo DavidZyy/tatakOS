@@ -13,6 +13,7 @@
 #include "profile.h"
 #include "fs/mpage.h"
 #include "utils.h"
+#include "config.h"
 
 #define QUIET
 #define __MODULE_NAME__ FAT
@@ -1041,16 +1042,15 @@ struct bio_vec *fat_get_sectors(fat32_t *fat, uint32_t cclus, int off, int n) {
     // 计算起始簇
     /* 偏移或者偏移加上要读的大小可能超过文件在磁盘上的大小 */
     while(off >= BPC(fat) && !IS_FAT_CLUS_END(cclus)) {
-        /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况 */
-        // if(IS_FAT_CLUS_END(cclus)) {
-            // ER();
-        // }
         cclus = fat_next_cluster(fat, cclus);
         off -= BPC(fat);
-        /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况 */
-        // if(IS_FAT_CLUS_END(cclus)) {
-        //     ER();
-        // }
+        /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况。debug的情况下做
+            更加严格的检查。 */
+#ifdef CHECK_BOUNDARY
+        if(IS_FAT_CLUS_END(cclus)) {
+            ER();
+        }
+#endif
     }
 
     // printf(rd("cclus: %d\n"), cclus);
@@ -1203,7 +1203,7 @@ FR_t fat_alloc_append_clusters(fat32_t *fat, uint32_t clus_start, uint32_t *clus
         return FR_OK;
 
 
-    /* 连续逆序分配 */
+    /* 连续逆序分配(现在为正序了？) */
     if(fat_alloc_cluster(fat, &new_clus, alloc_num) == FR_ERR)
         panic("fat enlarge file 2");
     fat_append_cluster(fat, *clus_end, new_clus);

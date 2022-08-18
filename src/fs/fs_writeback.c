@@ -34,12 +34,12 @@ void writeback_single_entry(entry_t *entry){
   if(TestSetEntryWriteback(entry))
     ER();
 
-  printf(ylw("begin write pages!"));
+  // printf(ylw("begin write pages!"));
   debug(ylw("begin write pages!"));
   sych_entry_in_disk(entry);
   // mpage_writepages(mapping);
   debug(ylw("end write pages!\n"));
-  printf(ylw("end write pages!\n"));
+  // printf(ylw("end write pages!\n"));
 
     // list_del(&entry->e_list); 在运行lat_fs时错误
   // list_del_init(&entry->e_list);

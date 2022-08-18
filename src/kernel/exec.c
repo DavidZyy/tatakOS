@@ -107,6 +107,7 @@ static uint64_t loadinterp(mm_t *mm) {
 
 }
 
+/* 在哪里释放f？ */
 file_t *open_exe(entry_t *elf){
     struct file *f;
     proc_t *p = myproc();
@@ -115,9 +116,11 @@ file_t *open_exe(entry_t *elf){
     int omode =  O_RDWR;
 
     edup(elf);
-    if ((f = filealloc()) == 0 || (fd = fdtbl_fdalloc(tbl, f, -1, omode)) < 0) {
-      ER();
-    }
+    f = filealloc();
+    // if ((f = filealloc()) == 0 || (fd = fdtbl_fdalloc(tbl, f, -1, omode)) < 0) {
+      // ER();
+    // }
+    // ER();
 
     f->ep = elf;
     f->readable = !(omode & O_WRONLY);
@@ -261,7 +264,7 @@ int exec(char *path, char *argv[], char *envp[]) {
 
 // #ifndef LAZY_LOAD
 //       if(!same_proc)
-        // goto loadseg;
+      // goto loadseg;
 // #endif
     } 
 
