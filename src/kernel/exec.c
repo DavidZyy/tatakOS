@@ -76,23 +76,23 @@ static uint64_t loadinterp(mm_t *mm) {
   elock(ep);
 
   if(reade(ep, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
-    goto bad;
+    ER();
   if(elf.magic != ELF_MAGIC)
-    goto bad;
+    ER();
 
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)) {
     if(reade(ep, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph)){
-      goto bad;
+      ER();
     }
 
     if(ph.type != PT_LOAD)
       continue;
     if(ph.memsz < ph.filesz)
-      goto bad;
+      ER();
     if(do_mmap(mm, NULL, 0, ph.vaddr + INTERP_BASE, ph.memsz, 0, elf_map_prot(ph.flags)) == -1)
-      goto bad;
+      ER();
     if(loadseg(mm, ph.vaddr + INTERP_BASE, ep, ph.off, ph.filesz) < 0)
-      goto bad;
+      ER();
     // debug("load interp va %#lx filesz %#lx memsz %#lx", ph.vaddr, ph.filesz, ph.memsz);
   }
 
@@ -101,7 +101,7 @@ static uint64_t loadinterp(mm_t *mm) {
   // debug("load done");
   return elf.entry + INTERP_BASE;
 
- bad:
+//  bad:
   eunlock(ep);
   return 0;
 
@@ -212,15 +212,15 @@ int exec(char *path, char *argv[], char *envp[]) {
 
   // Check ELF header
   if(reade(ep, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
-    goto bad;
+    ER();
   if(elf.magic != ELF_MAGIC)
-    goto bad;
+    ER();
 
   uint64_t elfentry = elf.entry;
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)) {
     if(reade(ep, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph)) {
-      goto bad;
+      ER();
     }
     if(ph.type == PT_PHDR) {
       putaux(AT_PHDR, ph.vaddr);
@@ -233,13 +233,13 @@ int exec(char *path, char *argv[], char *envp[]) {
       // debug("elfentry is %#lx", elfentry);
       putaux(AT_ENTRY, elfentry);
       putaux(AT_BASE, INTERP_BASE);
-      if((elfentry = loadinterp(newmm)) == 0) goto bad;
+      if((elfentry = loadinterp(newmm)) == 0) ER();
     }
     
     if(ph.type != PT_LOAD)
       continue;
     if(ph.memsz < ph.filesz)
-      goto bad;
+      ER();
   
     if (ph.flags & PF_W){
       // int flags = MAP_PRIVATE;
@@ -281,7 +281,7 @@ loadseg:
 
   //////////////STACK & HEAP////////////////
   if(mmap_map_stack(newmm, oldmm->ustack->len) == -1)
-    goto bad;
+    ER();
   
   uint64 envpc;
   uint64 envps[MAXENV + 1];
@@ -293,11 +293,11 @@ loadseg:
   // 复制环境变量字符串
   for(envpc = 0; envp[envpc]; envpc++) {
     if(envpc >= MAXENV)
-      goto bad;
+      ER();
     ustack -= strlen(envp[envpc]) + 1;
     ustack -= ustack % 16; // riscv sp must be 16-byte aligned
     if(ustack < ustackbase)
-      goto bad;
+      ER();
     memcpy((void *)ustack, envp[envpc], strlen(envp[envpc]) + 1);
     envps[envpc] = UPOS(ustack, ustackbase);
   }
@@ -305,10 +305,10 @@ loadseg:
   // 复制参数字符串
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
-      goto bad;
+      ER();
     ustack -= strlen(argv[argc]) + 1;
     if(ustack < ustackbase)
-      goto bad;
+      ER();
     memcpy((void *)ustack, argv[argc], strlen(argv[argc]) + 1);
     argvs[argc] = UPOS(ustack, ustackbase);
   }
@@ -316,7 +316,7 @@ loadseg:
   uint64 random[2] = { 0xea0dad5a44586952, 0x5a1fa5497a4a283d };
   ustack -= 16;
   if(ustack < ustackbase)
-    goto bad;
+    ER();
   memcpy((void *)ustack, random, 16);
 
   putaux(AT_RANDOM, UPOS(ustack, ustackbase));
@@ -331,7 +331,7 @@ loadseg:
   ustack -= sizeof(uint64) * (envpc + argc + auxcnt * 16);
   ustack -= ustack % 16;
   if(ustack < ustackbase)
-    goto bad;
+    ER();
   ustack += sizeof(uint64) * (envpc + argc);
 
   // 复制辅助变量
@@ -347,7 +347,7 @@ loadseg:
   
 
   if(mappages(newmm->pagetable, USERSPACE_END - PGSIZE, PGSIZE, ustackbase, riscv_map_prot(newmm->ustack->prot)) == -1) {
-    goto bad;
+    ER();
   }
 
   // Save program name for debugging.
@@ -362,7 +362,7 @@ loadseg:
   sig_reset(p->signal);
   return 0; // this ends up in a0, the first argument to main(argc, argv)
 
- bad:
+//  bad:
   // TODO:
   panic("bad");
   // return -1;
