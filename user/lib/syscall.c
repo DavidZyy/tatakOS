@@ -221,3 +221,7 @@ int umount(const char *special)
         return syscall(SYS_umount2, special, 0);
 }
 
+//add
+int memuse(int op){
+    return syscall(SYS_memuse, op);
+}

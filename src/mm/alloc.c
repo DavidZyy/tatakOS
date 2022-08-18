@@ -23,6 +23,11 @@ void kinit(void) {
     debug("init success");
 }
 
+extern uint64_t use_reserved_flag;
+
+#define TestSetUseReserved test_and_set_bit(0, &use_reserved_flag)
+#define TestClearUseReserved test_and_clear_bit(0, &use_reserved_flag)
+
 // extern void free_more_memory(void);
 
 
@@ -55,6 +60,9 @@ void kinit(void) {
 // }
 
 extern void free_more_memory(void);
+extern void sleep(void *chan, struct spinlock *lk);
+extern void wakeup(void *chan);
+
 void *kmalloc(size_t size) {
     void *ret = NULL;
 retry:
@@ -68,11 +76,23 @@ retry:
     }
     /* slob和buddy分配失败，都会返回空 */
     if(!ret){
-        // buddy_print_free();
-        free_more_memory();
-        // buddy_print_free();
+        /* 当前没有进程正在进行页回收 */
+        if(!TestSetUseReserved){
+            buddy_print_free();
+            free_more_memory();
+            buddy_print_free();
+            printf("\n");
 
-        // printf("\n");
+            /* 回收完毕，清除标记位 */
+            if(!TestClearUseReserved)
+                ER();
+            wakeup(&use_reserved_flag);
+        }
+        else{
+            /* 只需要一个进程回收页即可，如果检测到已经有其他进程回收了，睡眠 */
+            /* 似乎没有锁需要释放 */
+            sleep(&use_reserved_flag, NULL);
+        }
         goto retry;
     }
     return ret;
@@ -122,7 +142,7 @@ void free_one_page(page_t *page) {
     zone_t *zone = &memory_zone;
     spin_lock(&zone->lru_lock);
     if(TestClearPageLRU(page))
-    del_page_from_lru(zone, page);
+        del_page_from_lru(zone, page);
     spin_unlock(&zone->lru_lock);
     buddy_free_one_page(page);
 }

@@ -8,6 +8,7 @@
 #include "bio.h"
 
 #include "radix-tree.h"
+// #include "rmap.h"
 // #include "mm/mm.h"
 
 
@@ -198,12 +199,18 @@ void print_argv(char **argv){
   }
 }
 
+#ifdef RMAP
+extern void print_page_rmap(page_t *page);
+#endif
 /**
  * 打印页信息
  */
 void print_page_info(page_t *page){
   printf("refcnt: %d\tpgnum: %d\taddr: 0x%x\tflags: 0x%x\tpg_pointer: 0x%x\n", 
   page->refcnt, page-pages, NUM2PAGE(page-pages), page->flags, page);
+#ifdef RMAP
+  print_page_rmap(page);
+#endif
 }
 
 /**
@@ -212,20 +219,25 @@ void print_page_info(page_t *page){
  */
 extern char end[];
 void print_not_freed_pages() {
-  // int pgnum;
-  // uint64_t p;
-
   printf(rd("pages not be freed:\n"));
-  // for(p = (uint64_t)end; p < MEM_END; p += PGSIZE){
-    // pgnum = PAGE2NUM(p);
-    // if(pages[pgnum].refcnt > 0)
-      // printf("pgnum: %d\taddr: %p\n", pgnum, p);
-  // }
   for(int i = 0; i < PAGE_NUMS; i++){
     if(page_refcnt(&pages[i]) > 0)
       print_page_info(&pages[i]);
   }
 }
+
+/**
+ * 打印出map数大于0的rmap。
+ */
+#ifdef RMAP
+void print_mapped_pages(){
+  printf(rd("pages be mapped:\n"));
+  for(int i = 0; i < PAGE_NUMS; i++){
+    if(page_mapcnt(&pages[i]) > 0) 
+      print_page_info(&pages[i]);
+  } 
+}
+#endif
 
 
 void debug_pages(uint64_t imapping) {

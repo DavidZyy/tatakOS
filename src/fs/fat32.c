@@ -162,7 +162,9 @@ FR_t fat_mount(uint dev, fat32_t **ppfat) {
     *ppfat = fat;
 
     /* don't forget to initialize the list */
-    INIT_LIST_HEAD(&fat->fat_dirty);
+    // INIT_LIST_HEAD(&fat->fat_dirty);
+    INIT_LIST_HEAD(&fat->fat_lru);
+    INIT_LIST_HEAD(&fat->fat_file_lru);
     return FR_OK;
 }
 
@@ -1037,13 +1039,18 @@ struct bio_vec *fat_get_sectors(fat32_t *fat, uint32_t cclus, int off, int n) {
         return 0;
     // debug("now off is %d", off)
     // 计算起始簇
-    while(off >= BPC(fat)) {
+    /* 偏移或者偏移加上要读的大小可能超过文件在磁盘上的大小 */
+    while(off >= BPC(fat) && !IS_FAT_CLUS_END(cclus)) {
+        /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况 */
+        // if(IS_FAT_CLUS_END(cclus)) {
+            // ER();
+        // }
         cclus = fat_next_cluster(fat, cclus);
         off -= BPC(fat);
         /* 如果在把page写回disk之前，没有append足够的cluster，会出现这种情况 */
-        if(IS_FAT_CLUS_END(cclus)) {
-            ER();
-        }
+        // if(IS_FAT_CLUS_END(cclus)) {
+        //     ER();
+        // }
     }
 
     // printf(rd("cclus: %d\n"), cclus);

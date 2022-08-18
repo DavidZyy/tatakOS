@@ -64,7 +64,7 @@ void main() {
     /* FILE SYSTEM */
     binit();         // buffer cache
     fileinit();      // file table 
-    fs_init();
+    // fs_init();
 
     userinit();      // first user process
 

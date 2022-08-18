@@ -26,6 +26,7 @@
 
 #define __MODULE_NAME__ CONSOLE
 #include "debug.h"
+#include "config.h"
 
 #define BACKSPACE 0x100
 #define C(x)  ((x)-'@')  // Control-x
@@ -149,6 +150,10 @@ consoleread(int user_dst, uint64 dst, int n)
   return target - n;
 }
 
+#ifdef RMAP
+extern void print_mapped_pages();
+#endif
+
 //
 // the console input interrupt handler.
 // uartintr() calls this for input character.
@@ -166,6 +171,11 @@ consoleintr(char c)
     procdump();
     buddy_print_free();
     break;
+#ifdef RMAP
+  case C('L'):
+    print_mapped_pages();
+    break;
+#endif
   case C('U'):  // Kill line.
     while(cons.e != cons.w &&
           cons.buf[(cons.e-1) % INPUT_BUF] != '\n'){

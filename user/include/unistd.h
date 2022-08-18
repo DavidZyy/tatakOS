@@ -50,4 +50,7 @@ int pipe(int [2]);
 int dup(int);
 int dup2(int, int);
 
+//add
+
+int memuse(int);
 #endif // __UNISTD_H__

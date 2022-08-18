@@ -138,8 +138,10 @@ typedef struct _fat32_t {
 	spinlock_t cache_lock;		/* 保护缓存 */
 
 	/* added for entry write back to disk */
-	list_head_t fat_dirty;   	/* 所有dirty的entry的链表 */
+	// list_head_t fat_dirty;   	/* 所有dirty的entry的链表 */
 	// list_head_t fat_io;				/* 所有进行io的entry的链表 */
+	list_head_t fat_lru;
+	list_head_t fat_file_lru;
 } fat32_t;
 
 typedef enum _FAT_RESULT_t{

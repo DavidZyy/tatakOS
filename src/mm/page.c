@@ -15,6 +15,8 @@
 #include "utils.h"
 #include "page-flags.h"
 #include "list.h"
+#include "config.h"
+#include "mm/rmap.h"
 
 page_t pages[PAGE_NUMS];
 struct spinlock reflock;
@@ -100,6 +102,14 @@ int __mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int pro
       panic("mappages: remap");
     }
     *pte = PA2PTE_SPEC(pa, spec) | prot | PTE_V;
+#ifdef RMAP
+    /* 给用户空间的映射建立rmap，使用上面的会在ioremap挂掉 */
+    if(in_rmap_area(a)){
+      page_t *page = PATOPAGE(pa);
+
+      page_add_rmap(page, pte);
+    }
+#endif
     if(a == last)
       break;
     a += PGSIZE_SPEC(spec);
@@ -120,6 +130,7 @@ void __uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, in
   uint64 a;
   pte_t *pte;
   int pgsize = PGSIZE_SPEC(spec);
+  uint64_t pa;
 
   int need_flush = FETCH_PGTBL() == pagetable;
 
@@ -137,11 +148,20 @@ void __uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, in
     if((*pte & (PTE_R | PTE_W | PTE_X)) == 0)
       panic("uvmunmap: not a leaf");
     if(do_free){
-      uint64 pa = PTE2PA(*pte);
-      kfree((void*)pa);
+      pa = PTE2PA(*pte);
+      // kfree((void*)pa);
+      /* kfree不会把页从lru上移动下来，被坑了 */
+      put_page((uint64_t)pa);
     }
     *pte = 0;
 
+#ifdef RMAP
+    if(a < USERSPACE_END || a >= MMAP_BASE){
+      page_t *page = PATOPAGE(pa);
+
+      page_remove_rmap(page, pte);
+    }
+#endif
     if(need_flush)
       sfence_vma_addr(a);
   }
@@ -214,7 +234,8 @@ void lock_page(page_t *page){
   page_spin_lock(page);
   while(unlikely(TestSetPageLocked(page))){
     while(PageLocked(page))
-      sleep(page, NULL);
+      /* 传入1告诉sleep是lock_page */
+      sleep(page, (struct spinlock *)1);
   }
   page_spin_unlock(page);
 }

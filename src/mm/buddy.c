@@ -35,6 +35,9 @@ buddy_list_t lists[MAX_ORDER];
 atomic_t used;
 uint total;
 
+/* 是否允许申请预留内存（当内存不足的时候，写回使用 */
+uint64_t use_reserved_flag;
+
 /**
  * @brief this func and the next one is for debug
  * 
@@ -68,6 +71,7 @@ uint64_t buddy_gettotal() {
 }
 
 void buddy_init() {
+  use_reserved_flag = 0;
   for(int i = 0; i < MAX_ORDER; i++) {
     BUDDY_INIT_HEAD(lists[i].head);
     initlock(&lists[i].lock, "buddy list");
@@ -140,7 +144,10 @@ void *buddy_alloc(size_t size) {
   
   // no rooms
   int u = atomic_get(&used);
-  if(empty(order) || (u * 100 / total) >= 99) {
+  if(empty(order))
+    ERROR("OUT OF MEMORY!");
+
+  if(((u * 100 / total) >= AVAILABLE_MEMORY_RATE ) && !use_reserved_flag ) {
   // if(empty(order)) {
     release(&lists[order].lock);
 
@@ -246,6 +253,10 @@ void buddy_free(void *pa) {
   /* 不应该放在这里 */
   // if(!list_is_head(&page->lru, &page->lru))
     // del_page_from_lru(&memory_zone, page);
+  
+  /* 回收前应该已经清除了所有状态，这里做个检查，好找bug */
+  if(page->flags > 0)
+    ER();
   /* 回收page时清除其状态 */
   reset_page(page);
 

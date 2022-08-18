@@ -89,6 +89,8 @@ static inline void list_add_tail(struct list_head *pnew, struct list_head *head)
  */
 static inline void __list_del(struct list_head * prev, struct list_head * next)
 {
+	if(next == NULL)
+		for(;;);
 	next->prev = prev;
 	prev->next = next;
 }
@@ -258,6 +260,7 @@ static inline void list_move(struct list_head *list, struct list_head *head)
  * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
+ * head可能不在pos类型的结构体中，但是计算list_next_entry并未特殊处理
  */
 #define list_for_each_entry(pos, head, member)				\
 	for (pos = list_first_entry(head, typeof(*pos), member);	\

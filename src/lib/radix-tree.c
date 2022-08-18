@@ -358,10 +358,12 @@ out:
 }
 
 /**
- * @brief recursive lookup tagged page
+ * @brief recursive lookup tagged page，注意适用heigth >= 1的情况。
+ * 这个函数可以修改为page本身进行进行串联，因为page有index field，所以pg_id_base也
+ * 用不着了。
  * 
  */
-void lookup_tag(radix_tree_node_t *node, uint32_t tag, rw_page_list_t *pg_list, int height, uint64_t pg_id_base){
+void __lookup_tag(radix_tree_node_t *node, uint32_t tag, rw_page_list_t *pg_list, int height, uint64_t pg_id_base){
 	int i, shift;
 	shift = (height-1)*RADIX_TREE_MAP_SHIFT;
 	page_t *ppage;
@@ -391,7 +393,7 @@ void lookup_tag(radix_tree_node_t *node, uint32_t tag, rw_page_list_t *pg_list, 
 			}
 			else{
 
-				lookup_tag((radix_tree_node_t *)node->slots[i], tag, pg_list, height - 1, pg_id_base + i * (1<<shift));
+				__lookup_tag((radix_tree_node_t *)node->slots[i], tag, pg_list, height - 1, pg_id_base + i * (1<<shift));
 			}
 		}
 	}
@@ -400,10 +402,13 @@ void lookup_tag(radix_tree_node_t *node, uint32_t tag, rw_page_list_t *pg_list, 
 
 
 /**
- * @brief find all pages with tag in the rdt
+ * @brief find all pages with tag in the rdt，height=0的情况要特殊处理。
  */
 rw_page_list_t *
 radix_tree_find_tags(radix_tree_root_t *root, uint32_t tag, rw_page_list_t *pg_list){
+	if(!root_tag_get(root, tag))
+		goto back;
+
 	if(root->height == 0){
 		rw_page_t *page = kzalloc(sizeof(rw_page_t));
 		page_t *ppage = (page_t *)root->rnode;
@@ -414,7 +419,9 @@ radix_tree_find_tags(radix_tree_root_t *root, uint32_t tag, rw_page_list_t *pg_l
 		pg_list->tail = page;
 	}
 	else
-		lookup_tag(root->rnode, tag, pg_list, root->height, 0);
+		__lookup_tag(root->rnode, tag, pg_list, root->height, 0);
+
+back:
 	return pg_list;
 }
 

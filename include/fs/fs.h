@@ -64,13 +64,48 @@ struct fat_entry {
     uint64_t    clus_cnt; /* 总数据簇号 */
     uint32_t    size_in_mem; /* 内存中保留的当前文件的大小，在文件写回时，如果和磁盘上的不一致，则更新磁盘 */
 
-    int dirty; /* 脏位 */
+    // int dirty; /* 脏位 */
 
+    uint64_t flags;
     /* 链表，串进超级块的dirty链表或者io链表中 */
-    list_head_t e_list;
+    // list_head_t e_list;
+
+    /* 所有entry的lru链表 */
+    list_head_t e_lru;
+    /* 类型为file的lru链表 */
+    list_head_t e_file_lru;
 };
 
 typedef struct fat_entry entry_t;
+
+#define ENT_dirty 0
+#define ENT_writeback 1 /* write back to disk */
+#define ENT_writing 2 /* wirte to entry's pagecache */
+#define ENT_reading 3 /* read file from disk to pagecache */
+
+#define EntryDirty(entry)		test_bit(ENT_dirty, &(entry)->flags)
+#define SetEntryDirty(entry)	__set_bit(ENT_dirty, &(entry)->flags)
+#define TestSetEntryDirty(entry)	test_and_set_bit(ENT_dirty, &(entry)->flags)
+#define ClearEntryDirty(entry)	__clear_bit(ENT_dirty, &(entry)->flags)
+#define TestClearEntryDirty(entry) test_and_clear_bit(ENT_dirty, &(entry)->flags)
+
+#define EntryWriteback(entry)		test_bit(ENT_writeback, &(entry)->flags)
+#define SetEntryWriteback(entry)	__set_bit(ENT_writeback, &(entry)->flags)
+#define TestSetEntryWriteback(entry)	test_and_set_bit(ENT_writeback, &(entry)->flags)
+#define ClearEntryWriteback(entry)	__clear_bit(ENT_writeback, &(entry)->flags)
+#define TestClearEntryWriteback(entry) test_and_clear_bit(ENT_writeback, &(entry)->flags)
+
+#define EntryWriting(entry)		test_bit(ENT_writing, &(entry)->flags)
+#define SetEntryWriting(entry)	__set_bit(ENT_writing, &(entry)->flags)
+#define TestSetEntryWriting(entry)	test_and_set_bit(ENT_writing, &(entry)->flags)
+#define ClearEntryWriting(entry)	__clear_bit(ENT_writing, &(entry)->flags)
+#define TestClearEntryWriting(entry) test_and_clear_bit(ENT_writing, &(entry)->flags)
+
+#define EntryReading(entry)		test_bit(ENT_reading, &(entry)->flags)
+#define SetEntryReading(entry)	__set_bit(ENT_reading, &(entry)->flags)
+#define TestSetEntryReading(entry)	test_and_set_bit(ENT_reading, &(entry)->flags)
+#define ClearEntryReading(entry)	__clear_bit(ENT_reading, &(entry)->flags)
+#define TestClearEntryReading(entry) test_and_clear_bit(ENT_reading, &(entry)->flags)
 
 void fs_init();
 entry_t *namee(entry_t *from, char *path);
@@ -96,14 +131,14 @@ void sych_entry_in_disk(entry_t *entry);
 
 page_t *find_get_page(address_space_t *mapping, unsigned long offset);
 // int filemap_nopage(uint64 address);
-void add_to_page_cache(page_t *page, struct address_space *mapping, pgoff_t offset);
+void add_to_page_cache(page_t *entry, struct address_space *mapping, pgoff_t offset);
 void free_mapping(entry_t *entry);
 int do_generic_mapping_read(struct address_space *mapping, int user, uint64_t buff, int off, int n);
 uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint64_t buff, int off, int n);
 rw_page_list_t* find_pages_tag(address_space_t *mapping, uint32_t tag);
 void writeback_file_to_disk(entry_t *entry);
-void __remove_from_page_cache(page_t *page);
-void remove_from_page_cache(page_t *page);
+void __remove_from_page_cache(page_t *entry);
+void remove_from_page_cache(page_t *entry);
 void *radix_tree_delete(struct radix_tree_root *root, unsigned long index);
 
 #endif

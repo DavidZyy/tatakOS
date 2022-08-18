@@ -285,3 +285,6 @@
 #define __NR_mailread 401
 #define __NR_mailwrite 402
 #define __NR_mkdir 1030
+
+//add
+#define __NR_memuse 233

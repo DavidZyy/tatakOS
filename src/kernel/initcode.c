@@ -1,6 +1,8 @@
 #include "usys.h"
 #include "stdarg.h"
+#include "fs/fcntl.h"
 
+void run(char *argv[]); 
 void printf(const char *fmt, ...);
 void*memcpy(void* dst, const void* src, uint n);
 void __run(char *argv[]);
@@ -17,6 +19,8 @@ void main() {
     mkdirat(-100, "tmp");
     mkdirat(-100, "proc");
     mkdirat(-100, "proc/mounts");
+    /* 创建swap文件 */
+    openat(-100, "/swap", O_RDWR | O_CREATE);
 
     memuse();
     // shell();

@@ -7,10 +7,11 @@
 #include "kernel/proc.h"
 #include "defs.h"
 #include "mm/mm.h"
-
+#include "swap.h"
 #define __MODULE_NAME__ PAGEFAULT
 
 #include "debug.h"
+#include "mm/rmap.h"
 
 extern char cp_start;
 extern char cp_end;
@@ -36,6 +37,17 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
     flag &= ~PTE_COW;
 
     *pte = PA2PTE(mem) | flag;
+#ifdef RMAP
+    /* 给用户空间的映射建立rmap */
+    if(va < USERSPACE_END || va >= MMAP_BASE){
+        page_t *page = PATOPAGE(mem);
+        /* 建立新的rmap */
+        page_add_rmap(page, pte);
+        /* 移除旧的rmap */
+        page = PATOPAGE(pa);
+        page_remove_rmap(page, pte);
+    }
+#endif
 
     /* 引用数-1 */
     put_page(pa);
@@ -50,6 +62,7 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
 typedef enum {
     PF_LOAD,
     PF_STORE,
+    PF_INSTRUCTION,
     PF_UNKNOWN,
 } pagefault_t;
 
@@ -70,6 +83,7 @@ static pagefault_t get_pagefault(uint64 scause) {
         // #endif
         case EXCP_LOAD_PAGE_FAULT:return PF_LOAD;
         case EXCP_LOAD_FAULT:return PF_LOAD;
+        case EXCP_INSTR_PAGE_FAULT: return PF_INSTRUCTION;
         default:return PF_UNKNOWN;
     }
 }
@@ -84,6 +98,8 @@ static int have_prot(pagefault_t fault, vma_t *vma){
         if(vma->prot & PROT_READ)
             return 1;
     }
+    if(fault == PF_INSTRUCTION)
+        return 1;
     return 0;
 }
 
@@ -91,10 +107,16 @@ static int do_filemap_page(pte_t *pte, vma_t *vma, uint64_t address){
     return filemap_nopage(pte, vma, address);
 }
 
-static int do_swap_page(){
-    ER();
+#ifdef RMAP
+#ifdef SWAP 
+int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address);
+
+static int do_swap_page(pte_t *pte, vma_t *vma, uint64_t address){
+    swap_in_page(pte, vma, address);
     return 1;
 }
+#endif
+#endif
 
 /**
  * lazy allocation
@@ -104,6 +126,16 @@ static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
 
     *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
 
+#ifdef RMAP
+    page_t *page = PATOPAGE(newpage);
+    /* 给用户空间的映射建立rmap */
+    if (in_rmap_area(address))
+        page_add_rmap(page, pte);
+#ifdef SWAP
+    lru_cache_add(page);
+    mark_page_accessed(page);
+#endif
+#endif
     /* 本来就为0，是否有必要？ */
     sfence_vma_addr(address);
     return 1;
@@ -137,7 +169,11 @@ int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
             /* lazy allocation */
             return do_anonymous_page(pte, vma, rva);
         }
-        return do_swap_page();
+#ifdef RMAP
+#ifdef SWAP 
+        return do_swap_page(pte, vma, rva);
+#endif
+#endif
     }
 
     /* cow, 类型为store， 并且write位为0 */
@@ -192,10 +228,12 @@ int handle_pagefault(uint64_t scause) {
             goto kernel_fail;
         }
         
+        disable_sum();
         if(__handle_pagefault(fault, p, vma, rva) == -1) {
             info("pagefault handle fault");
             goto kernel_fail;
         }
+        enable_sum();
     } else {
         // debug("u");
         // if(rva == 0xF00022000) {

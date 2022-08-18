@@ -25,6 +25,7 @@
 #include "kthread.h"
 #include "mm/page.h"
 #include "pagevec.h"
+#include "config.h"
 
 zone_t memory_zone = (zone_t){.lru_lock = {.locked=0, .name="zone lock", .cpu=NULL}, 
                               .active_list = {&memory_zone.active_list, &memory_zone.active_list}, 
@@ -100,6 +101,7 @@ void lru_cache_add(page_t *page)
 
 /**
  * 添加到active list cache
+ * 似乎一般是通过active_page添加到active list上的。
  */
 void lru_cache_add_active(page_t *page)
 {
@@ -222,3 +224,46 @@ void pagevec_release(struct pagevec *pvec)
 	put_pages(pvec->pages, pagevec_count(pvec));
 	pagevec_reinit(pvec);
 }
+
+
+#ifdef RMAP
+#ifdef SWAP 
+
+int swap_slot_id;
+
+int get_swap_slot_id(){
+	return swap_slot_id++;
+}
+
+extern fat32_t *fat;
+/**
+ * add_to_swap - allocate swap space for a page
+ * @page: page we want to move to swap
+ *
+ * Allocate swap space for the page and add the page to the
+ * swap cache.  Caller needs to hold the page lock. 
+ */
+int add_to_swap(page_t * page){
+	uint64_t pg_slot;
+	entry_t *entry;
+
+	/* 动态分配，全局保持会更好 */
+	if ((entry = namee(fat->root, "/swap")) == 0)
+		ER();
+
+	if (!PageLocked(page))
+		ER();
+	
+	pg_slot = get_swap_slot_id();
+
+	/* 不考虑同一个页是否已经在swap cache中存在了 */
+	add_to_page_cache(page, entry->i_mapping, pg_slot);
+
+	/* 设置为dirty，so that shrink list will write it back */
+	SetPageDirty(page);
+	SetPageSwapCache(page);
+
+	return 1;
+}
+#endif
+#endif

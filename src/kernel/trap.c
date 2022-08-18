@@ -101,6 +101,7 @@ usertrap(void)
     // do_page_fault(scause);
     // ok
   } else {
+    /* 现在指令错误也交给页错误处理了 */
     info("pid is %d sepc is %lx scause is "rd("%s(%d)")" stval is %lx", p->pid, r_sepc(), riscv_cause2str(scause), scause, r_stval());
     ER();
     p->killed = 1;
@@ -184,8 +185,7 @@ kerneltrap(ktf_t *context)
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
   proc_t *p = myproc();
-  
-  
+    
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
 

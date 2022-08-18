@@ -764,6 +764,14 @@ yield(void)
   release(&p->lock);
 }
 
+#ifdef RMAP 
+#ifdef SWAP
+extern entry_t *swap_entry;
+extern int swap_slot_id;
+entry_t *create_swap_file();
+#endif
+#endif
+
 #include "fs/fat.h"
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
@@ -786,11 +794,19 @@ forkret(void)
 
     extern fat32_t *fat;
     fat_mount(ROOTDEV, &fat);
+    fs_init();
     p->cwd = namee(NULL, "/");
     // // init dir...
     // entry_t *tmp = create(fat->root, "/tmp", T_DIR);
     // if(tmp)
     //   eunlockput(tmp);
+#ifdef RMAP
+#ifdef SWAP
+    /* 这里创建ls时卡住，在initcode中创建 */
+    // swap_entry = create_swap_file();
+    swap_slot_id = 1;
+#endif
+#endif
   }
 
   usertrapret();
@@ -820,7 +836,7 @@ __sleep(void *chan, struct spinlock *lk)
 
     if(lk != NULL)
       release(lk);
-    else {
+    else if((uint64_t)lk == 1){
       page_t *page = (page_t *)chan;
       page_spin_unlock(page);
     }
@@ -841,7 +857,7 @@ __sleep(void *chan, struct spinlock *lk)
 
   if(lk != NULL)
     acquire(lk);
-  else{
+  else if((uint64_t)lk == 1){
     page_t *page = (page_t *)chan;
     page_spin_lock(page);
   }
