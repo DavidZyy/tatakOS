@@ -156,16 +156,16 @@ uint64_t sys_memuse(void) {
   buddy_print_free();
 
   // printf("op: %d", op);
-  if(op == ALL_REFERED_PAGES){
-    print_not_freed_pages(); 
-  }
-  else if(op == ALL_MAPPED_PAGES){
-#ifdef RMAP
-    print_mapped_pages();
-#else
-    printf(ylw("Rmap moudle is not be applied, turn on it in config.h.\n"));
-#endif
-  }
+//   if(op == ALL_REFERED_PAGES){
+//     print_not_freed_pages(); 
+//   }
+//   else if(op == ALL_MAPPED_PAGES){
+// #ifdef RMAP
+//     print_mapped_pages();
+// #else
+//     printf(ylw("Rmap moudle is not be applied, turn on it in config.h.\n"));
+// #endif
+//   }
   return 0;
 }
 

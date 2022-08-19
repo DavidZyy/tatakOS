@@ -229,6 +229,8 @@ void *alloc_pages(uint64_t size, int type){
         add_page_state(nr_pipe, nr);
     else if(type == 1)
         add_page_state(nr_anonymous, nr); 
+    else if(type == 2)
+        add_page_state(nr_kstack, nr); 
     else    
         ER();
     return kmalloc(size);
@@ -242,6 +244,8 @@ void free_pages(void *addr, int type){
         sub_page_state(nr_pipe, nr);
     else if(type == 1)
         sub_page_state(nr_anonymous, nr); 
+    else if(type == 2)
+        sub_page_state(nr_kstack, nr); 
     else    
         ER();
     return kfree(addr);

@@ -258,6 +258,8 @@ int add_to_swap(page_t * page){
 
 	/* 不考虑同一个页是否已经在swap cache中存在了 */
 	add_to_page_cache(page, entry->i_mapping, pg_slot);
+	// entry->size_in_mem += PGSIZE;
+	entry->size_in_mem = (pg_slot+1)*PGSIZE;
 
 	/* 设置为dirty，so that shrink list will write it back */
 	SetPageDirty(page);

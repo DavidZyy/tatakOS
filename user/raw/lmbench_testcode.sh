@@ -3,8 +3,8 @@
 # lmbench_all lat_syscall -P 1 null # 6
 # lmbench_all lat_syscall -P 1 read # 26
 # lmbench_all lat_syscall -P 1 write # 11
-busybox mkdir -p /var/tmp
-busybox touch /var/tmp/lmbench
+# busybox mkdir -p /var/tmp
+# busybox touch /var/tmp/lmbench
 # lmbench_all lat_syscall -P 1 stat /var/tmp/lmbench # 1100
 # lmbench_all lat_syscall -P 1 fstat /var/tmp/lmbench # 111
 # lmbench_all lat_syscall -P 1 open /var/tmp/lmbench # 1200
@@ -32,4 +32,5 @@ busybox touch /var/tmp/lmbench
 # lmbench_all bw_mmap_rd -P 1 512k mmap_only /var/tmp/XXX # 0.524288 7974.76
 # lmbench_all bw_mmap_rd -P 1 512k open2close /var/tmp/XXX # 0.524288 0.476628
 # busybox echo context switch overhead
-lmbench_all lat_ctx -P 1 -s 32 2 4 8 16 24 32 64 96 # no result?
+# lmbench_all lat_ctx -P 1 -s 32 2 4 8 16 24 32 64 96 # no result?
+lmbench_all lat_ctx -P 1 -s 32 64 96 # no result?

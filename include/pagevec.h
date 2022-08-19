@@ -21,8 +21,14 @@
 
 #include "types.h"
 #include "mm/page.h"
+#include "config.h"
 
-#define PAGEVEC_SIZE	14
+/* debug vm时，避免因为在pagevec中造成页缺少的错误 */
+#ifdef CHECK_BOUNDARY
+	#define PAGEVEC_SIZE	1
+#elif
+	#define PAGEVEC_SIZE	14
+#endif
 
 struct page;
 struct address_space;

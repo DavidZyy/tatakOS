@@ -41,6 +41,9 @@ void free_pages(void *addr, int type);
 #define alloc_anonymous_pages(size) alloc_pages(size, 1)
 #define free_anonymous_pages(addr) free_pages(addr, 1)
 
+#define alloc_kstack_pages(size) alloc_pages(size, 2)
+#define free_kstack_pages(addr) free_pages(addr, 2)
+
 #define AF_KERNEL 0x0
 #define AF_USER 0x1
 

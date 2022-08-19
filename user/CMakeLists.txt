@@ -56,7 +56,7 @@ set(ENTRY "0x1000")
 # set(SRCS src/oscomp/ls.c)
 # set(SRCS src/oscomp/waitpid.c)
 # set(SRCS src/oscomp/brk.c)
-set(SRCS src/oscomp/mmap.c src/oscomp/bigwrite.c src/oscomp/memuse.c)
+set(SRCS src/oscomp/mmap.c src/oscomp/bigwrite.c src/oscomp/mem_test.c)
 
 set(EXECUTABLE_OUTPUT_PATH ${ARCH})
 foreach(PATH ${SRCS})

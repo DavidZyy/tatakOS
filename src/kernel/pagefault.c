@@ -160,7 +160,8 @@ int __handle_pagefault(pagefault_t fault, proc_t *p, vma_t *vma, uint64 rva) {
         return 1;
     }
     pte_t *pte, entry;
-
+    
+    /* 分配页表 */
     pte = walk(p->mm->pagetable, rva, 1);
     entry = *pte;
 

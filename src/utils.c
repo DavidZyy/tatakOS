@@ -283,11 +283,21 @@ void print_chars(char *c, int n){
   
 }
 
+int cal_length_of_list(list_head_t *head){
+  int length = 0;
+  list_head_t *pos;
+  list_for_each(pos, head){
+    length++;
+  }
+  return length;
+}
+
 extern struct page_state pg_state;
 extern zone_t memory_zone;
 
 void print_page_state(){
   uint64_t sum = 0;
+  int cnts = 0;
   zone_t *zone = &memory_zone;
 
   printf("\n");
@@ -314,13 +324,17 @@ void print_page_state(){
   printf(grn("nr_pipe:\t")"%d\n", pg_state.nr_pipe);
   sum += pg_state.nr_pipe;
 
-  printf(ylw("used(sum of last);\t")"%d\n", sum);
+  cnts = pg_state.nr_kstack;
+  printf(grn("nr_kstack:\t")"%d\n", cnts); 
+  sum += cnts;
+
+  printf(ylw("used(sum of above);\t")"%d\n", sum);
 
   /* 包括预留的页 */
   printf(grn("nr_buddy:\t")"%d\n", pg_state.nr_buddy);
   sum += pg_state.nr_buddy;
 
-  printf(ylw("total(sum of last):\t")"%d\n", sum);
+  printf(ylw("total(sum of above):\t")"%d\n", sum);
 
   printf(bl("nr_active\t")"%d\n", zone->nr_active);
   printf(bl("nr_inactive\t")"%d\n", zone->nr_inactive);

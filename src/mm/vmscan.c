@@ -146,11 +146,11 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 			goto keep_locked;
 
 #ifdef RMAP
-    int referenced;
+    int referenced = 0;
     // todo("add bit lock");
     pte_chain_lock(page);
-		/* page_referenced检测pte的access位，被设置了说明页最近被访问过；此时如果页正在使用，则不释放 */
-    referenced = page_referenced(page);
+		/* page_referenced检测pte的access位，被设置了说明页最近被访问过；此时如果页正在使用，则不释放(ps:页太少了，可能所有的页都有access位？) */
+    // referenced = page_referenced(page);
 		/* In active use or really unfreeable?  Activate it. */
 		if (referenced && page_mapping_inuse(page)){
       pte_chain_unlock(page);
@@ -171,7 +171,9 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		 * 映射到用户页表的页（目前只考虑mmap），先解映射
 		 */
 		if (page_mapped(page) && mapping) {
+			pte_chain_unlock(page);
 			try_to_unmap(page);
+			pte_chain_lock(page);
 		}
 		pte_chain_unlock(page);
 #endif
@@ -254,7 +256,7 @@ static void shrink_inactive_list(zone_t *zone, struct scan_control *sc){
 
 	lru_add_drain();
 	spin_lock(&zone->lru_lock);
-  while(max_scan > 0){
+  // while(max_scan > 0){
 		int nr_taken = 0;
 		int nr_scan = 0;
 		int nr_freed;
@@ -286,7 +288,12 @@ static void shrink_inactive_list(zone_t *zone, struct scan_control *sc){
   
     max_scan -= nr_scan;
 
+		int len = cal_length_of_list(&page_list);
+		printf(rd("run into shrink_list, page_list length: %d\n"), len);
+		print_page_state();
     nr_freed = shrink_list(&page_list, sc);
+		printf(rd("run out of shrink_list\n"));
+		print_page_state();
 
     sc->nr_to_reclaim -= nr_freed;
 
@@ -310,7 +317,7 @@ static void shrink_inactive_list(zone_t *zone, struct scan_control *sc){
 				spin_lock(&zone->lru_lock);
 			}    
     }
-  }
+  // }
   spin_unlock(&zone->lru_lock);
 done:
   pagevec_release(&pvec);
@@ -404,7 +411,7 @@ shrink_active_list(zone_t *zone, struct scan_control *sc){
     /* 目前没有实现swap的功能，采取的回收策略是映射到用户空间的页(page->_mapcount > 0)一律不回收 */
 #ifdef RMAP
     if(page_mapped(page)){
-			if(reclaim_mapped)
+			if(!reclaim_mapped)
       	list_add(&page->lru, &l_active);
       continue;
     }
@@ -481,23 +488,32 @@ shrink_zone(struct zone *zone, struct scan_control *sc){
 
 	sc->nr_to_reclaim = SWAP_CLUSTER_MAX;
 
-	while(nr_to_scan_active || nr_to_scan_inactive){
+#ifdef CHECK_BOUNDARY
+	if(zone->nr_active != cal_length_of_list(&zone->active_list))
+		ER();
+	if(zone->nr_inactive != cal_length_of_list(&zone->inactive_list))
+		ER();
+#endif
+
+	// while(nr_to_scan_active || nr_to_scan_inactive){
 		if(nr_to_scan_active){
 			sc->nr_to_scan = min(nr_to_scan_active, SWAP_CLUSTER_MAX);
 			nr_to_scan_active -= sc->nr_to_scan;
 			/* 从active list回收页到inactive list */
-			shrink_active_list(zone, sc);
+			// shrink_active_list(zone, sc);
 		}
 
+		printf(rd("run into shrink_inactive_list\n"));
+		print_page_state();
 		if(nr_to_scan_inactive){
 			sc->nr_to_scan = min(nr_to_scan_inactive, SWAP_CLUSTER_MAX);
 			nr_to_scan_inactive -= sc->nr_to_scan;
 			/* 从inactive list回收页到buddy */
 			shrink_inactive_list(zone, sc);
-			if(sc->nr_to_reclaim <= 0)
-				break;
+			// if(sc->nr_to_reclaim <= 0)
+				// break;
 		}
-	}
+	// }
 }
 
 
@@ -512,7 +528,7 @@ void buddy_print_free();
  */
 int try_to_free_pages(){
 	zone_t *zone = &memory_zone;
-	int priority;
+	int priority = 0;
 	int ret = 0;
 	int total_scanned = 0, total_reclaimed = 0;
 	// struct reclaim_state *reclaim_state = current->reclaim_state;
@@ -522,7 +538,7 @@ int try_to_free_pages(){
   // sc.may_writepage = 0;
 
 	/* 循环回收，priority越小，回收等级越高 */
-	for(priority = DEF_PRIORITY; priority >= 0; priority--){
+	// for(priority = DEF_PRIORITY; priority >= 0; priority--){
  		// sc.nr_mapped = read_page_state(nr_mapped);
 		/* 每次循环reset */
 		sc.nr_scanned = 0;
@@ -540,14 +556,13 @@ int try_to_free_pages(){
 			ret = 1;
 			goto out;
 		}
-	}
+	// }
 
-	if(priority < 0){
-    procdump();
-    buddy_print_free();
+	// if(priority < 0){
+    // buddy_print_free();
 		print_page_state();
 		ERROR("out of memory!");
-	}
+	// }
 	// total_scanned += sc.nr_scanned;
 	// total_reclaimed += sc.nr_reclaimed;
 
@@ -657,5 +672,7 @@ void free_more_memory(void)
 	if(u1 - u2 > SWAP_CLUSTER_MAX)
 		return;
 //  needpool(pool);
+	print_page_state();
   try_to_free_pages();
+	print_page_state();
 }

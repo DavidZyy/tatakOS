@@ -16,6 +16,7 @@ void __run(char *argv[]);
 __attribute__((section(".startup"))) 
 void main() {
 
+    // for(;;);
     mkdirat(-100, "tmp");
     mkdirat(-100, "proc");
     mkdirat(-100, "proc/mounts");
@@ -23,6 +24,8 @@ void main() {
     openat(-100, "/swap", O_RDWR | O_CREATE);
 
     memuse();
+    // lmbench("lat_ctx", "-P", "1", "-s", "32", "2", "4", "8", "16", "24", "32", "64", "96");
+    // lmbench("lat_ctx", "-P", "1", "-s", "32", "64", "96");
     shell();
     shell("./busybox_testcode.sh");
     shell("./lua_testcode.sh");

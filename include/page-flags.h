@@ -40,6 +40,7 @@ struct page_state {
 	uint64_t nr_anonymous; /* 匿名页，stack, heap, private mmap */
 	uint64_t nr_trapframe; /* 包括trapframe */
 	uint64_t nr_pipe; 
+	uint64_t nr_kstack;
 };
 
 typedef struct page_state page_state_t;

@@ -211,7 +211,7 @@ found:
 
   /* 内核栈没有纳入到回收中 */
   // if((p->kstack = (uint64)kmalloc(KSTACK_SZ)) == 0) {
-  if((p->kstack = (uint64)alloc_anonymous_pages(KSTACK_SZ)) == 0) {
+  if((p->kstack = (uint64)alloc_kstack_pages(KSTACK_SZ)) == 0) {
     debug("kstack alloc failure");
     goto bad;
   }
@@ -254,7 +254,7 @@ void freeproc(struct proc *p) {
 
   // if(p->kstack) kfree_safe(&p->kstack);
   if(p->kstack) {
-    free_anonymous_pages((void*)p->kstack);
+    free_kstack_pages((void*)p->kstack);
     p->kstack = (uint64_t)NULL;
   }
   if(p->exe) eput(p->exe);
@@ -746,8 +746,8 @@ sched(void)
 
   if(!holding(&p->lock))
     panic("sched p->lock");
-  if(mycpu()->noff != 1)
-    panic("sched locks");
+  // if(mycpu()->noff != 1)
+    // panic("sched locks");
   if(p->state == RUNNING)
     panic("sched running");
   if(intr_get())
