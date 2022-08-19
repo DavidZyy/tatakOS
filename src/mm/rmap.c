@@ -261,6 +261,11 @@ void page_add_rmap(page_t *page, pte_t *ptep) {
 		ClearPageDirect(page);
 		cur_pte_chain = (pte_chain_t *)kzalloc(sizeof(pte_chain_t));
 
+#ifdef CHECK_BOUNDARY
+		if ((uint64_t)cur_pte_chain & NRPTE)
+			ER();
+#endif
+
 		/* 从尾往头放 */
 		cur_pte_chain->ptes[NRPTE-1] = page->pte.direct;
 		cur_pte_chain->ptes[NRPTE-2] = ptep;
@@ -276,6 +281,10 @@ void page_add_rmap(page_t *page, pte_t *ptep) {
 	if(cur_pte_chain->ptes[0]){
 		pte_chain_t *new_pte_chain = kzalloc(sizeof(pte_chain_t));
 
+#ifdef CHECK_BOUNDARY
+		if ((uint64_t)cur_pte_chain & NRPTE)
+			ER();
+#endif
 		new_pte_chain->next_and_idx = pte_chain_encode(cur_pte_chain, NRPTE - 1);
 		page->pte.chain = new_pte_chain;
 		new_pte_chain->ptes[NRPTE-1] = ptep;
@@ -305,16 +314,26 @@ void page_remove_rmap(page_t *page, pte_t *ptep){
 	pte_addr_t pte_paddr = ptep_to_paddr(ptep);
 	pte_chain_t *pc;
 
-  atomic_dec(&page->mapcount);
+  // atomic_dec(&page->mapcount);
 
 	pte_chain_lock(page);
 
+#ifdef CHECK_BOUNDARY
 	if(!page_mapped(page))
-		goto out_unlock;
+		ER();
+		// goto out_unlock;
+
+
+	if(page->mapcount.counter == 1)
+		/* 从大于1缩小回1，并不是direct；此时需要前两个为0 */
+		if(!PageDirect(page) && (page->pte.chain->ptes[0] || page->pte.chain->ptes[1]))
+			ER();
+#endif
 
 	if(PageDirect(page)){
 		if(page->pte.direct == pte_paddr){
 			page->pte.direct = 0;
+  		atomic_dec(&page->mapcount);
 			ClearPageDirect(page);
 			goto out;
 		}
@@ -337,6 +356,7 @@ void page_remove_rmap(page_t *page, pte_t *ptep){
 					victim_i = i;
 				if(pa != pte_paddr)
 					continue;
+  			atomic_dec(&page->mapcount);
 				pc->ptes[i] = start->ptes[victim_i];
 				start->ptes[victim_i] = 0;
 
@@ -356,7 +376,7 @@ void page_remove_rmap(page_t *page, pte_t *ptep){
 out:
 	if (!page_mapped(page))
 		dec_page_state(nr_mapped);
-out_unlock:
+// out_unlock:
 	pte_chain_unlock(page);
 	return;
 }

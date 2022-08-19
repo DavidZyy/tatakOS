@@ -162,6 +162,16 @@ void __uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, in
     }
     if((*pte & (PTE_R | PTE_W | PTE_X)) == 0)
       panic("uvmunmap: not a leaf");
+
+#ifdef RMAP
+    if(in_rmap_area(a)){
+      pa = PTE2PA(*pte);
+      page_t *page = PATOPAGE(pa);
+
+      page_remove_rmap(page, pte);
+    }
+#endif
+
     if(do_free){
       pa = PTE2PA(*pte);
       // kfree((void*)pa);
@@ -179,13 +189,15 @@ void __uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, in
     }
     *pte = 0;
 
-#ifdef RMAP
-    if(in_rmap_area(a)){
-      page_t *page = PATOPAGE(pa);
+/* 位置不对，应该加到put_page前面 */
+// #ifdef RMAP
+//     if(in_rmap_area(a)){
+//       page_t *page = PATOPAGE(pa);
 
-      page_remove_rmap(page, pte);
-    }
-#endif
+//       page_remove_rmap(page, pte);
+//     }
+// #endif
+
     if(need_flush)
       sfence_vma_addr(a);
   }

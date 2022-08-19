@@ -40,7 +40,8 @@ static inline int cow_copy(uint64_t va, pte_t *pte) {
     *pte = PA2PTE(mem) | flag;
 #ifdef RMAP
     /* 给用户空间的映射建立rmap */
-    if(va < USERSPACE_END || va >= MMAP_BASE){
+    // if(va < USERSPACE_END || va >= MMAP_BASE){
+    if(in_rmap_area(va)){
         page_t *page = PATOPAGE(mem);
         /* 建立新的rmap */
         page_add_rmap(page, pte);

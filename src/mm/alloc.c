@@ -144,6 +144,12 @@ void free_one_page(page_t *page) {
     if(TestClearPageLRU(page))
         del_page_from_lru(zone, page);
     spin_unlock(&zone->lru_lock);
+
+#ifdef CHECK_BOUNDARY
+    if(page_mapped(page))
+        ER();
+#endif
+
     buddy_free_one_page(page);
 }
 
