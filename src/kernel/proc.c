@@ -210,8 +210,8 @@ found:
   INIT_LIST_HEAD(&p->head);
 
   /* 内核栈没有纳入到回收中 */
-  add_page_state(nr_anonymous, 2);
-  if((p->kstack = (uint64)kmalloc(KSTACK_SZ)) == 0) {
+  // if((p->kstack = (uint64)kmalloc(KSTACK_SZ)) == 0) {
+  if((p->kstack = (uint64)alloc_anonymous_pages(KSTACK_SZ)) == 0) {
     debug("kstack alloc failure");
     goto bad;
   }
@@ -252,7 +252,11 @@ void freeproc(struct proc *p) {
   tg_free(&p->tg);
   tf_free(&p->trapframe);
 
-  if(p->kstack) kfree_safe(&p->kstack);
+  // if(p->kstack) kfree_safe(&p->kstack);
+  if(p->kstack) {
+    free_anonymous_pages((void*)p->kstack);
+    p->kstack = (uint64_t)NULL;
+  }
   if(p->exe) eput(p->exe);
 
   pstate_migrate(p, UNUSED);

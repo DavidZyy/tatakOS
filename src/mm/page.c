@@ -20,7 +20,7 @@
 
 page_t pages[PAGE_NUMS];
 struct spinlock reflock;
-struct page_state pg_state = {0,0,0,0,0,0,0,0};
+struct page_state pg_state = {0,0,0,0,0,0,0,0,0,0};
 
 extern void wakeup(void *chan);
 extern void sleep(void *chan, struct spinlock *lk);
@@ -180,7 +180,7 @@ void __uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, in
     *pte = 0;
 
 #ifdef RMAP
-    if(a < USERSPACE_END || a >= MMAP_BASE){
+    if(in_rmap_area(a)){
       page_t *page = PATOPAGE(pa);
 
       page_remove_rmap(page, pte);

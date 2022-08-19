@@ -284,10 +284,14 @@ void print_chars(char *c, int n){
 }
 
 extern struct page_state pg_state;
+extern zone_t memory_zone;
 
 void print_page_state(){
   uint64_t sum = 0;
+  zone_t *zone = &memory_zone;
+
   printf("\n");
+
   printf(bl("nr_dirty:\t")"%d\n", pg_state.nr_dirty);
   printf(bl("nr_writeback:\t")"%d\n", pg_state.nr_writeback);
   printf(bl("nr_mapped:\t")"%d\n", pg_state.nr_mapped);
@@ -304,11 +308,22 @@ void print_page_state(){
   printf(grn("nr_anonymous:\t")"%d\n", pg_state.nr_anonymous);
   sum += pg_state.nr_anonymous;
 
-  printf(ylw("sum of last four:\t")"%d\n", sum);
+  printf(grn("nr_trapframe:\t")"%d\n", pg_state.nr_trapframe);
+  sum += pg_state.nr_trapframe;
 
+  printf(grn("nr_pipe:\t")"%d\n", pg_state.nr_pipe);
+  sum += pg_state.nr_pipe;
+
+  printf(ylw("used(sum of last);\t")"%d\n", sum);
+
+  /* 包括预留的页 */
   printf(grn("nr_buddy:\t")"%d\n", pg_state.nr_buddy);
   sum += pg_state.nr_buddy;
 
-  printf(ylw("sum of last five:\t")"%d\n", sum);
+  printf(ylw("total(sum of last):\t")"%d\n", sum);
+
+  printf(bl("nr_active\t")"%d\n", zone->nr_active);
+  printf(bl("nr_inactive\t")"%d\n", zone->nr_inactive);
+
   printf("\n");
 }

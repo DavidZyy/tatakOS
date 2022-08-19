@@ -4,7 +4,8 @@
 #include "str.h"
 
 tf_t *tf_new() {
-    tf_t *tf = (tf_t*)kzalloc(PGSIZE);
+    // tf_t *tf = (tf_t*)kzalloc(PGSIZE);
+    tf_t *tf = (tf_t*)alloc_one_trapframe_page();
     if(tf == NULL)
         return NULL;
     tf->sigtf = NULL;
@@ -31,7 +32,8 @@ void tf_reset(tf_t *self, uint64_t pc, uint64_t sp) {
 }
 
 void tf_free(tf_t **pptf) {
-    kfree_safe(pptf);
+    // kfree_safe(pptf);
+    free_one_trapframe_page(pptf);
 }
 
 

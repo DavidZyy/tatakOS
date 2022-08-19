@@ -474,7 +474,7 @@ retry:
       pgcnts = 1;
     }
     
-    if(pgcnts == 1){
+    if(pgcnts > 0){
       // 不存在LRU
       // pa = (uint64_t)kalloc();
       pa = (uint64_t)alloc_one_pagecache_page();

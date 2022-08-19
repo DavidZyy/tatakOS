@@ -207,7 +207,8 @@ static inline pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
  */
 static inline int page_mapped(page_t *page)
 {
-    return page->pte.direct != 0;
+    // return page->pte.direct != 0;
+    return page->mapcount.counter;
 }
 
 static inline int page_mapcnt(page_t *page){

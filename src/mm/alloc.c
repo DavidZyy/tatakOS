@@ -201,3 +201,42 @@ void free_one_page_table_page(void *addr){
   /* 原来freewalk中用的是kfree */
   put_page((uint64_t)addr);
 }
+
+void *alloc_one_trapframe_page(){
+    inc_page_state(nr_trapframe);
+    return kzalloc(PGSIZE);
+}
+
+struct trapframe;
+typedef struct trapframe tf_t;
+void free_one_trapframe_page(tf_t **pptf){
+    dec_page_state(nr_trapframe);
+    kfree_safe(pptf);
+}
+
+void *alloc_pages(uint64_t size, int type){
+    if(size & ~PGMASK)
+        ER();
+
+    int nr = size >> PGSHIFT;
+    if(type == 0)
+        add_page_state(nr_pipe, nr);
+    else if(type == 1)
+        add_page_state(nr_anonymous, nr); 
+    else    
+        ER();
+    return kmalloc(size);
+}
+
+void free_pages(void *addr, int type){
+    page_t *page = PATOPAGE(addr);
+
+    int nr = 1 <<  page->order;
+    if(type == 0)
+        sub_page_state(nr_pipe, nr);
+    else if(type == 1)
+        sub_page_state(nr_anonymous, nr); 
+    else    
+        ER();
+    return kfree(addr);
+}

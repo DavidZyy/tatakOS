@@ -500,6 +500,8 @@ shrink_zone(struct zone *zone, struct scan_control *sc){
 	}
 }
 
+
+void buddy_print_free();
 /*
  * This is the main entry point to direct page reclaim.
  *
@@ -541,6 +543,8 @@ int try_to_free_pages(){
 	}
 
 	if(priority < 0){
+    procdump();
+    buddy_print_free();
 		print_page_state();
 		ERROR("out of memory!");
 	}

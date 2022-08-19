@@ -285,7 +285,9 @@ static inline int mmap_init(mm_t *mm) {
     }
     
     if(setupkvm(mm->pagetable) == -1) {
-        kfree_safe(&mm->pagetable);
+        // kfree_safe(&mm->pagetable);
+        free_one_page_table_page(&mm->pagetable);
+        mm->pagetable = NULL;
         return -1;
     }
     
