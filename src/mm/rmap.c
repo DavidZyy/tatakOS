@@ -161,7 +161,9 @@ static int try_to_unmap_one(page_t *page, pte_addr_t paddr)
 		SetPageDirty(page);
 
 #ifdef RMAP
-	page_remove_rmap(page, paddr);
+	/* 重复释放了 */	
+  atomic_dec(&page->mapcount);
+	// page_remove_rmap(page, paddr);
 #ifdef SWAP
 	if(PageSwapCache(page)){
 		*ptep = (page->index) << 10;

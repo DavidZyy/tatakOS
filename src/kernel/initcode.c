@@ -7,7 +7,7 @@ void printf(const char *fmt, ...);
 void*memcpy(void* dst, const void* src, uint n);
 void __run(char *argv[]);
 
-#define run(...) {char *__cmd[] = {##__VA_ARGS__, 0};__run(__cmd);}
+#define run(...) {char *__cmd[] = {__VA_ARGS__, 0};__run(__cmd);}
 #define shell(...) {char *__cmd[] = {"busybox", "sh", ##__VA_ARGS__, 0};__run(__cmd);}
 #define lua(...) {char *__cmd[] = {"lua", ##__VA_ARGS__, 0};__run(__cmd);}
 #define lmbench(...) {char *__cmd[] = {"lmbench_all", ##__VA_ARGS__, 0};__run(__cmd);}
@@ -26,6 +26,7 @@ void main() {
     memuse();
     // lmbench("lat_ctx", "-P", "1", "-s", "32", "2", "4", "8", "16", "24", "32", "64", "96");
     // lmbench("lat_ctx", "-P", "1", "-s", "32", "64", "96");
+    // run("./mem_test");
     shell();
     shell("./busybox_testcode.sh");
     shell("./lua_testcode.sh");

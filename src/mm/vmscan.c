@@ -170,6 +170,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		 * processes. Try to unmap it here.
 		 * 映射到用户页表的页（目前只考虑mmap），先解映射
 		 */
+		page->refcnt.counter -= (page->mapcount.counter - 1);
 		if (page_mapped(page) && mapping) {
 			pte_chain_unlock(page);
 			try_to_unmap(page);
@@ -552,7 +553,8 @@ int try_to_free_pages(){
 		total_reclaimed += sc.nr_reclaimed;
 
 		/* 回收数量满足，返回 */
-		if(total_reclaimed >= SWAP_CLUSTER_MAX) {
+		// if(total_reclaimed >= SWAP_CLUSTER_MAX) {
+		if(total_reclaimed >= 0) {
 			ret = 1;
 			goto out;
 		}

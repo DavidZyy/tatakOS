@@ -571,6 +571,8 @@ int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address){
     lru_cache_add(page);
     mark_page_accessed(page);
 
+    put_page(page);
+
     *pte = PA2PTE(pa) | riscv_map_prot(vma->prot) | PTE_V;
 
     if(in_rmap_area(address)){

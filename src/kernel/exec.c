@@ -275,6 +275,12 @@ loadseg:
     if(loadseg(newmm, ph.vaddr, ep, ph.off, ph.filesz) < 0)
       ER();
   }
+
+  /* heap */
+  do_mmap(newmm, NULL, 0, PGROUNDUP(ph.vaddr + ph.memsz) + PGSIZE, 0, 0, elf_map_prot(ph.flags));
+  // newmm->uheap = vma_find(newmm, PGROUNDUP(ph.vaddr + ph.memsz) + PGSIZE);
+  // assert(newmm->uheap);
+  
   // debug("%s: loadseg done entry is %#lx", path, elfentry);
   // mmap_print(newmm);
   eunlock(ep);
