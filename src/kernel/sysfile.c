@@ -10,7 +10,7 @@
 #include "fs/fcntl.h"
 #include "fs/file.h"
 #include "fs/fs.h"
-#include "fs/ioctl.h"
+#include "ioctl.h"
 #include "fs/stat.h"
 #include "kernel/proc.h"
 #include "mm/mmap.h"
@@ -483,9 +483,10 @@ uint64 sys_openat(void) {
         f->off = E_FILESIZE(ep);
     else
         f->off = 0;
-    // if((omode & O_TRUNC) && E_ISFILE(ep)){ // todo:
-    //   etrunc(ep);
-    // }
+
+    // assert((omode & O_TRUNC )== 0);
+    // if((omode & O_TRUNC) && E_ISFILE(ep))
+
 
     eunlock(ep);
     return fd;
@@ -680,10 +681,10 @@ uint64 sys_exec(void) {
     namepath(p->cwd, cwd);
     snprintf(pwd, MAXPATH, "PWD=%s", cwd);
     char *envp[] = {"LD_LIBRARY_PATH=/",
-                    "LONGNAME=Dear_u",
+                    "LOGNAME=root",
                     pwd,
                     "PS1=\\u"grn("\\w")"\\$ ",
-                    "PATH=/",
+                    "PATH=/:/bin",
                     "ENOUGH=3000", 
                     "TIMING_O=7", 
                     "LOOP_O=0",
@@ -798,57 +799,10 @@ uint64 sys_ioctl(void) {
     uint64 request;
     uint64 arg0;
 
-    int pgrp = 0;
-
     if(argfd(0, &fd, NULL) < 0 || argaddr(1, &request) < 0 || argaddr(2, &arg0) < 0) 
         return -1;
-    // debug("req %#x", request);
-    // if(request != TIOCGWINSZ) {
-    //     panic("unsupport req");
-    // }
-    switch(request) {
-        case TCGETS:
-            if (copy_to_user(arg0, &(struct termios){
-                .c_iflag = 0,
-                // .c_oflag = OPOST|ONLCR,
-                .c_oflag = 0,
-                .c_cflag = 0,
-                // .c_lflag = ICANON|ECHO,
-                .c_lflag = 0,
-                .c_line = 0,
-                .c_cc = {0},
-            }, sizeof(struct termios)) < 0)
-                return -1;
-            break;
-        case TCSETS:
-
-            break;
-        case TIOCGPGRP:
-            
-            if(copy_to_user(arg0, &pgrp, sizeof(int)) < 0)
-                return -1;
-            break;
-        case TIOCSPGRP:
-        
-            break;
-        case TIOCGWINSZ:
-            if (copy_to_user(arg0, &(struct winsize){
-                .ws_row = 20,
-                .ws_col = 100,
-            }, sizeof(struct winsize)) < 0)
-                return -1;
-            break;
-        /* for hwclock */
-        case 0xffffffff80247009:
-            break;
-        default:
-            return 0;
-    }
-    return 0;
-}
-
-uint64 sys_ppoll(void) {
-    return 1;
+    
+    return ioctl(NULL, request, arg0);
 }
 
 uint64 sys_lseek(void) {
@@ -1092,5 +1046,27 @@ sys_msync(void){
 
     // msync(addr, length, flags);
     
+    return 0;
+}
+
+uint64_t sys_ftruncate() {
+    int fd;
+    off_t length;
+    proc_t *p = myproc();
+
+    argint(0, &fd);
+    argaddr(1, (uint64_t *)&length);
+
+    file_t *fp = fdtbl_getfile(p->fdtable, fd);
+
+    if(!fp || !fp->writable || fp->type != FD_ENTRY)
+        return -1;
+    
+    entry_t *entry = fp->ep;
+
+    elock(entry);
+    etrunc(entry, length);
+    eunlock(entry);
+
     return 0;
 }

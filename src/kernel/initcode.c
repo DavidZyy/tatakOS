@@ -20,14 +20,10 @@ void main() {
     mkdirat(-100, "tmp");
     mkdirat(-100, "proc");
     mkdirat(-100, "proc/mounts");
-    /* 创建swap文件 */
-    openat(-100, "/swap", O_RDWR | O_CREATE);
+    close(openat(-100, "/var/tmp/lmbench", 0100));
 
     memuse();
-    // lmbench("lat_ctx", "-P", "1", "-s", "32", "2", "4", "8", "16", "24", "32", "64", "96");
-    // lmbench("lat_ctx", "-P", "1", "-s", "32", "64", "96");
-    // run("./mem_test");
-    shell();
+    // shell();
     shell("./busybox_testcode.sh");
     shell("./lua_testcode.sh");
     lmbench("lat_syscall", "-P", "1", "null");
