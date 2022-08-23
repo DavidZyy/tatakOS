@@ -263,10 +263,10 @@ int exec(char *path, char *argv[], char *envp[]) {
       if(do_mmap(newmm, ep, PGROUNDDOWN(ph.off), ph.vaddr, ph.memsz, MAP_SHARED, elf_map_prot(ph.flags)) == -1)
         ER();
 
-// #ifndef LAZY_LOAD
+#ifdef NO_LAZY_LOAD
 //       if(!same_proc)
-      // goto loadseg;
-// #endif
+      goto loadseg;
+#endif
     } 
 
     continue;

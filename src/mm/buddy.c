@@ -145,7 +145,7 @@ void *buddy_alloc(size_t size) {
   // no rooms
   int u = atomic_get(&used);
   if(empty(order))
-    ERROR("OUT OF MEMORY!");
+    ERROR("OUT OF MEMORY IN BUDDY!");
 
   if(((u * 100 / total) >= AVAILABLE_MEMORY_RATE ) && !use_reserved_flag ) {
   // if(empty(order)) {
@@ -262,8 +262,10 @@ void buddy_free(void *pa) {
     // del_page_from_lru(&memory_zone, page);
   
   /* 回收前应该已经清除了所有状态，这里做个检查，好找bug */
+#ifdef CHECK_BOUNDARY
   if(page->flags > 0)
     ER();
+#endif
   /* 回收page时清除其状态 */
   reset_page(page);
 

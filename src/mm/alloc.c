@@ -10,6 +10,7 @@
 #define __MODULE_NAME__ ALLOC
 #include "debug.h"
 #include "pagevec.h"
+#include "kernel/proc.h"
 
 #define JUNK 1
 
@@ -25,8 +26,9 @@ void kinit(void) {
 
 extern uint64_t use_reserved_flag;
 
-#define TestSetUseReserved test_and_set_bit(0, &use_reserved_flag)
-#define TestClearUseReserved test_and_clear_bit(0, &use_reserved_flag)
+#define TestSetUseReserved() test_and_set_bit(0, &use_reserved_flag)
+#define TestClearUseReserved() test_and_clear_bit(0, &use_reserved_flag)
+#define UseReserved() test_bit(0, &use_reserved_flag)
 
 // extern void free_more_memory(void);
 
@@ -62,9 +64,15 @@ extern uint64_t use_reserved_flag;
 extern void free_more_memory(void);
 extern void sleep(void *chan, struct spinlock *lk);
 extern void wakeup(void *chan);
+struct proc *myproc(void);
 
 void *kmalloc(size_t size) {
     void *ret = NULL;
+    struct proc *p = myproc();
+
+    /* 如果当前正在进行页回收，但是回收进程不是此进程，则睡眠 */
+    if(UseReserved() && !p->reclaim_flag)
+        sleep(&use_reserved_flag, NULL);
 retry:
     if(size < PGSIZE) { // Smaller, we use slob
         // printf("alloc from slob\n");
@@ -74,24 +82,27 @@ retry:
     } else { // more than one page, We use buddy
         ret = buddy_alloc(size);
     }
-    /* slob和buddy分配失败，都会返回空 */
+    /* slob和buddy分配失败，都会返回空，进行页回收 */
     if(!ret){
         /* 当前没有进程正在进行页回收 */
-        if(!TestSetUseReserved){
-            buddy_print_free();
+        if(!TestSetUseReserved()){
+            // buddy_print_free();
+            p->reclaim_flag = 1;
             free_more_memory();
-            buddy_print_free();
-            printf("\n");
+            // buddy_print_free();
+            // printf("\n");
 
             /* 回收完毕，清除标记位 */
-            if(!TestClearUseReserved)
+            if(!TestClearUseReserved())
                 ER();
+            p->reclaim_flag = 0;
             wakeup(&use_reserved_flag);
         }
         else{
             /* 只需要一个进程回收页即可，如果检测到已经有其他进程回收了，睡眠 */
             /* 似乎没有锁需要释放 */
-            sleep(&use_reserved_flag, NULL);
+            ER();
+            // sleep(&use_reserved_flag, NULL);
         }
         goto retry;
     }
@@ -146,8 +157,10 @@ void free_one_page(page_t *page) {
     spin_unlock(&zone->lru_lock);
 
 #ifdef CHECK_BOUNDARY
+#ifdef RMAP
     if(page_mapped(page))
         ER();
+#endif
 #endif
 
     buddy_free_one_page(page);

@@ -64,6 +64,7 @@ typedef struct scan_control scan_control_t;
 
 #define lru_to_page(_head) (list_entry((_head)->prev, page_t, lru))
 
+#ifdef RMAP
 /* Must be called with page's pte_chain_lock held. */
 static inline int page_mapping_inuse(page_t *page)
 {
@@ -83,6 +84,7 @@ static inline int page_mapping_inuse(page_t *page)
 
 	return 0;
 }
+#endif
 
 extern void sych_entry_size_in_disk(entry_t *entry);
 /**
@@ -212,11 +214,9 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		continue;
 
 #ifdef RMAP
-#ifdef SWAP
 activate_locked:
 		SetPageActive(page);
 		// pgactivate++;
-#endif
 #endif
 
 keep_locked:
@@ -289,12 +289,12 @@ static void shrink_inactive_list(zone_t *zone, struct scan_control *sc){
   
     max_scan -= nr_scan;
 
-		int len = cal_length_of_list(&page_list);
-		printf(rd("run into shrink_list, page_list length: %d\n"), len);
-		print_page_state();
+		// int len = cal_length_of_list(&page_list);
+		// printf(rd("run into shrink_list, page_list length: %d\n"), len);
+	//	print_page_state();
     nr_freed = shrink_list(&page_list, sc);
-		printf(rd("run out of shrink_list\n"));
-		print_page_state();
+		// printf(rd("run out of shrink_list\n"));
+	//	print_page_state();
 
     sc->nr_to_reclaim -= nr_freed;
 
@@ -504,8 +504,8 @@ shrink_zone(struct zone *zone, struct scan_control *sc){
 			// shrink_active_list(zone, sc);
 		}
 
-		printf(rd("run into shrink_inactive_list\n"));
-		print_page_state();
+		// printf(rd("run into shrink_inactive_list\n"));
+	//	print_page_state();
 		if(nr_to_scan_inactive){
 			sc->nr_to_scan = min(nr_to_scan_inactive, SWAP_CLUSTER_MAX);
 			nr_to_scan_inactive -= sc->nr_to_scan;
@@ -562,7 +562,7 @@ int try_to_free_pages(){
 
 	// if(priority < 0){
     // buddy_print_free();
-		print_page_state();
+	//	print_page_state();
 		ERROR("out of memory!");
 	// }
 	// total_scanned += sc.nr_scanned;
@@ -674,7 +674,7 @@ void free_more_memory(void)
 	if(u1 - u2 > SWAP_CLUSTER_MAX)
 		return;
 //  needpool(pool);
-	print_page_state();
+	//print_page_state()
   try_to_free_pages();
-	print_page_state();
+	//print_page_state();
 }

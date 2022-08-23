@@ -135,8 +135,10 @@ static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
     if (in_rmap_area(address))
         page_add_rmap(page, pte);
 #ifdef SWAP
-    lru_cache_add(page);
-    mark_page_accessed(page);
+    if(vma->addr != 0x1000){
+        lru_cache_add(page);
+        mark_page_accessed(page);
+    }
 #endif
 #endif
     /* 本来就为0，是否有必要？ */

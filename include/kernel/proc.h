@@ -137,6 +137,8 @@ struct proc {
   char name[20];               // Process name (debugging)
 
   uint64 ktrap_fp;
+  /* 当前进程释放在回收页 */
+  int reclaim_flag;
 };
 
 typedef struct proc proc_t;

@@ -209,6 +209,7 @@ proc_t *proc_new(int is_kthread) {
   p->u_time = 0;
   p->s_time = 0;
   p->stub_time = ticks;
+  p->reclaim_flag = 0;
   
   INIT_LIST_HEAD(&p->head);
 

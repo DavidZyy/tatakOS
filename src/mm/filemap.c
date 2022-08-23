@@ -139,8 +139,10 @@ void walk_free_rdt(struct radix_tree_node *node, uint8 height, uint8 c_h)
         // /* 是释放一整个物理页吗？ */
         // printf(bl("walk free pa: %p\n"), pa);
         // kfree(pa);
+#ifdef RMAP
         if(page_mapped(page))
           ER();
+#endif
         // put_page(page);
         free_one_pagecache_page(page);
         // printf("pa: %p\n", pa);
@@ -185,8 +187,10 @@ void free_mapping(entry_t *entry)
       ER();
     walk_free_rdt(root->rnode, root->height, 1);
   } else if(root->height == 0 && root->rnode){
+#ifdef RMAP
     if(page_mapped((page_t *)root->rnode))
       ER();
+#endif
     // put_page((page_t *)root->rnode);
     free_one_pagecache_page((page_t *)root->rnode);
   }

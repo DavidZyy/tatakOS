@@ -295,50 +295,50 @@ int cal_length_of_list(list_head_t *head){
 extern struct page_state pg_state;
 extern zone_t memory_zone;
 
-void print_page_state(){}
-// void print_page_state(){
-//   uint64_t sum = 0;
-//   int cnts = 0;
-//   zone_t *zone = &memory_zone;
+// void print_page_state(){}
+void print_page_state(){
+  uint64_t sum = 0;
+  int cnts = 0;
+  zone_t *zone = &memory_zone;
 
-//   printf("\n");
+  printf("\n");
 
-//   printf(bl("nr_dirty:\t")"%d\n", pg_state.nr_dirty);
-//   printf(bl("nr_writeback:\t")"%d\n", pg_state.nr_writeback);
-//   printf(bl("nr_mapped:\t")"%d\n", pg_state.nr_mapped);
+  printf(bl("nr_dirty:\t")"%d\n", pg_state.nr_dirty);
+  printf(bl("nr_writeback:\t")"%d\n", pg_state.nr_writeback);
+  printf(bl("nr_mapped:\t")"%d\n", pg_state.nr_mapped);
 
-//   printf(grn("nr_page_table_pages:\t")"%d\n", pg_state.nr_page_table_pages);
-//   sum += pg_state.nr_page_table_pages;
+  printf(grn("nr_page_table_pages:\t")"%d\n", pg_state.nr_page_table_pages);
+  sum += pg_state.nr_page_table_pages;
 
-//   printf(grn("nr_slob:\t")"%d\n", pg_state.nr_slob);
-//   sum += pg_state.nr_slob;
+  printf(grn("nr_slob:\t")"%d\n", pg_state.nr_slob);
+  sum += pg_state.nr_slob;
 
-//   printf(grn("nr_pagecache:\t")"%d\n", pg_state.nr_pagecache);
-//   sum += pg_state.nr_pagecache;
+  printf(grn("nr_pagecache:\t")"%d\n", pg_state.nr_pagecache);
+  sum += pg_state.nr_pagecache;
   
-//   printf(grn("nr_anonymous:\t")"%d\n", pg_state.nr_anonymous);
-//   sum += pg_state.nr_anonymous;
+  printf(grn("nr_anonymous:\t")"%d\n", pg_state.nr_anonymous);
+  sum += pg_state.nr_anonymous;
 
-//   printf(grn("nr_trapframe:\t")"%d\n", pg_state.nr_trapframe);
-//   sum += pg_state.nr_trapframe;
+  printf(grn("nr_trapframe:\t")"%d\n", pg_state.nr_trapframe);
+  sum += pg_state.nr_trapframe;
 
-//   printf(grn("nr_pipe:\t")"%d\n", pg_state.nr_pipe);
-//   sum += pg_state.nr_pipe;
+  printf(grn("nr_pipe:\t")"%d\n", pg_state.nr_pipe);
+  sum += pg_state.nr_pipe;
 
-//   cnts = pg_state.nr_kstack;
-//   printf(grn("nr_kstack:\t")"%d\n", cnts); 
-//   sum += cnts;
+  cnts = pg_state.nr_kstack;
+  printf(grn("nr_kstack:\t")"%d\n", cnts); 
+  sum += cnts;
 
-//   printf(ylw("used(sum of above);\t")"%d\n", sum);
+  printf(ylw("used(sum of above);\t")"%d\n", sum);
 
-//   /* 包括预留的页 */
-//   printf(grn("nr_buddy:\t")"%d\n", pg_state.nr_buddy);
-//   sum += pg_state.nr_buddy;
+  /* 包括预留的页 */
+  printf(grn("nr_buddy:\t")"%d\n", pg_state.nr_buddy);
+  sum += pg_state.nr_buddy;
 
-//   printf(ylw("total(sum of above):\t")"%d\n", sum);
+  printf(ylw("total(sum of above):\t")"%d\n", sum);
 
-//   printf(bl("nr_active\t")"%d\n", zone->nr_active);
-//   printf(bl("nr_inactive\t")"%d\n", zone->nr_inactive);
+  printf(bl("nr_active\t")"%d\n", zone->nr_active);
+  printf(bl("nr_inactive\t")"%d\n", zone->nr_inactive);
 
-//   printf("\n");
-// }
+  printf("\n");
+}

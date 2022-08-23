@@ -249,7 +249,7 @@ int add_to_swap(page_t * page){
 
 	/* 动态分配，全局保持会更好 */
 	if ((entry = namee(fat->root, "/swap")) == 0)
-		ER();
+		ERROR("no swap file, pleae create it in initcode!");
 
 	if (!PageLocked(page))
 		ER();
