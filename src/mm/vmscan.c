@@ -1,3 +1,13 @@
+/**
+ * @file vmscan.c
+ * @author Yangyang Zhu (1929772352@qq.com)
+ * @version 0.1
+ * @date 2023-01-18
+ * 
+ * @copyright Copyright (c) 2023
+ * 页回收模块
+ * 
+ */
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
@@ -147,6 +157,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 		if (PageWriteback(page))
 			goto keep_locked;
 
+		/*rmap start here*/
 #ifdef RMAP
     int referenced = 0;
     // todo("add bit lock");
@@ -158,15 +169,18 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
       pte_chain_unlock(page);
 			goto activate_locked;
     }
-	#ifdef SWAP
+		/*swap start here*/
+#ifdef SWAP
 		/* 匿名页 */
 		if (page_mapped(page) && !mapping){
 			pte_chain_unlock(page);
+			/*添加到swap里面，然后就像处理mapped页一样处理它，这个函数结束后，这个页又从swap文件中移除并释放掉了*/
 			add_to_swap(page);
 			pte_chain_lock(page);
 			mapping = page->mapping;
 		}	
-	#endif
+		/*swap end here*/
+#endif
     /*
 		 * The page is mapped into the page tables of one or more
 		 * processes. Try to unmap it here.
@@ -179,6 +193,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc){
 			pte_chain_lock(page);
 		}
 		pte_chain_unlock(page);
+		/*rmap end here*/
 #endif
 
 		/* 写回dirty页 */
@@ -588,7 +603,7 @@ extern fat32_t *fat;
  * 2. 文件未关闭，可以把page从pagecache中移除并释放，但是不能释放i_mapping，因为可能正是使用此entry的i_mapping的内存不足时
  * 		来到这里的，释放后会出错。
  */
-void reclaim_pages_from_pagecaches(){
+void reclaim_pages_from_pagecaches() {
   entry_t *entry;
 
   acquire(&fat->cache_lock);

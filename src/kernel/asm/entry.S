@@ -4,7 +4,7 @@
 # a1=dtb  a0=hartid
 _entry: 
 	# set up a stack for C.
-        # stack0 is declared in start.c,
+        # stack0 is declared in main.c,
         # with a 4096-byte stack per CPU.
         # sp = stack0 + (hartid * 4096)
         mv tp, a0

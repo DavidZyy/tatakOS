@@ -2,7 +2,7 @@
 #define _H_IOCTL_
 
 #include "common.h"
-#include "termios.h"
+#include "sys/termios.h"
 
 // #define _IOC(a,b,c,d) ( ((a)<<29) | ((b)<<8) | (c) | ((d)<<16) )
 // #define _IOC_NONE  1U

@@ -9,8 +9,9 @@
                 "${workspaceFolder}/user/include/**"
             ],
             "defines": [],
-            "intelliSenseMode": "linux-gcc-x64", 
-            "compilerPath": "/opt/kendryte-toolchain/bin/riscv64-unknown-elf-gcc"
+            "intelliSenseMode": "linux-gcc-x64",
+            "compilerPath": "/opt/kendryte-toolchain/bin/riscv64-unknown-elf-gcc",
+            "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],
     "version": 4

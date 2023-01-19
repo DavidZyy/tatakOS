@@ -20,7 +20,8 @@ void main() {
     mkdirat(-100, "proc");
     mkdirat(-100, "proc/mounts");
     close(openat(-100, "/var/tmp/lmbench", 0100));
-    /* 创建交换文件 */
+    /* 创建一个新的交换文件 */
+    // unlink("./swap");
     openat(-100, "./swap", O_CREATE);
 
     memuse();

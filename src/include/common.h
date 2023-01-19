@@ -5,6 +5,7 @@
 #include "param.h"
 #include "utils.h"
 #include "errno.h"
+#include "error.h"
 
 #define __STR(name) #name
 #define STR(name) __STR(name)

@@ -368,6 +368,12 @@ void msync(uint64_t addr, uint64_t length, int flags){
 
 zone_t *zone = &memory_zone;
 
+/**
+ * 仔细想想，使用递归在系统中不是一个很好的编程方式，如果规模很大，可能会爆栈？
+ * @param page_head 
+ * @param node 
+ * @param height 
+ */
 void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_node_t *node, int height){
 // void __get_all_putable_pages_in_pagecache(entry_t *entry){
   if(height == 0){
@@ -380,13 +386,17 @@ void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_nod
     从这个角度看，锁好像没用 */
     if(!TestSetPageLocked(page) && !PageWriteback(page)){
 #ifdef RMAP
-      if(page_mapped(page))
+      if(page_mapped(page)){
+        /*forget the below line, swap in 的页在swap文件中，
+          且有映射，所以这里会返回，但是没有清掉locked bit*/
+        ClearPageLocked(page);
         return;
+      }
 #endif
       /* 别忘了这一步 */
       // list_del_init(&page->lru);
       // TestClearPageLRU(page);
-      /* put_page也会把page从lru上取下，这里为了利用page的链表，提前取下 */
+      /* put_page也会把page从lru上取下，这里为了利用page的链表(lru field)，提前取下 */
       spin_lock(&zone->lru_lock);
       if(TestClearPageLRU(page))
           del_page_from_lru(zone, page);
@@ -446,6 +456,8 @@ void remove_put_pages_in_pagecache(entry_t *entry){
   // // }
 
   // free_rw_page_list(pg_list, READ);
+  /*遍历并删除链表节点，因为链表不能直接删除当前节点cur，
+    所以这里使用了cur和prev，但是感觉这种方式不好*/
   page_t *cur_page;
   page_t *prev_page = NULL;
   LIST_HEAD(page_head);

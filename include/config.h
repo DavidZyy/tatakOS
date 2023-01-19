@@ -5,7 +5,8 @@
   所以在rmap中统计nr_mapped，关闭会导致数据统计不准确 */
 #define RMAP
 /* (不稳定）是否开启swap，如果开启swap，需要先开启rmap */
-// #define SWAP
+ /*半天swap没开？*/
+#define SWAP
 
 /***************参数****************/
 /* 最大readahead页数占当前空余内存的页数，百分率(%) */

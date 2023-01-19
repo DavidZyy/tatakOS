@@ -69,12 +69,17 @@ struct proc *myproc(void);
 void *kmalloc(size_t size) {
     void *ret = NULL;
     struct proc *p = myproc();
+    int try_times = 0;
 
     /* 如果当前正在进行页回收，但是回收进程不是此进程，则睡眠 */
     if(UseReserved() && !p->reclaim_flag)
         sleep(&use_reserved_flag, NULL);
 retry:
-    if(size < PGSIZE) { // Smaller, we use slob
+    try_times++;
+    // if(try_times > 10)
+        // ERROR("try many times and failed!\n");
+    // Smaller, we use slob
+    if(size < PGSIZE) { 
         // printf("alloc from slob\n");
         // if(size == 1)
         //     panic("one byte?");
