@@ -89,7 +89,9 @@ void error(char *info, char *s, const char *s1, int d)
   printf(rd("ERROR INFO:\n"));
   printf(rd("%s\n"), info);
   printf(rd("file: %s\t func: %s\t line: %d\r\n"), s, s1, d);
-  enable_sum();
+  /*关闭之后允许中断，即某个进程出错卡在下面的for后，
+    其他进程可以通过时间中断调度继续允许*/
+  // enable_sum();
   for(;;);
 }
 

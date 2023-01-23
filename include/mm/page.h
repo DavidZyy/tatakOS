@@ -97,6 +97,7 @@ typedef struct _page_t {
     uint64_t flags;      /* bit操作时将指针转化为int型，设置为uint8_t类型会不会有问题？ */
     list_head_t lru; /* 串联页，active/inactive list */
     struct address_space *mapping;
+    /*在一个pagecache中（rdt树）的序号*/
     uint32_t index;
 
 #ifdef RMAP
