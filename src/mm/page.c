@@ -321,3 +321,34 @@ int page_is_dirty(uint64_t pa){
   // return page->flags & PG_dirty;
   return PageDirty(page);
 }
+
+/**
+ * 把一个页加入lru链表，设置flag，需要确定页不在lru链表中。
+ */
+void add_page_to_lru_list(page_t *page) {
+  zone_t *zone = &memory_zone;
+
+	if (TestSetPageLRU(page))
+      ER();
+
+  spin_lock(&zone->lru_lock);
+  list_add(&page->lru, &zone->lru_list);
+  zone->nr_lru++;
+  spin_unlock(&zone->lru_lock);
+}
+
+/**
+ * 把页从lru链表中删除，清除flag，需要确定页已经在lru中
+ * 存在。
+ */
+void del_page_from_lru_list(page_t *page) {
+  zone_t *zone = &memory_zone;
+
+  if(!TestClearPageLRU(page))
+    ER();
+
+  spin_lock(&zone->lru_lock);
+	list_del(&page->lru);
+	zone->nr_lru--;
+  spin_unlock(&zone->lru_lock);
+}

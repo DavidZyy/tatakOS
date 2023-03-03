@@ -31,6 +31,11 @@
                     "ignoreFailures": true
                 },
                 // {
+                //     "description": "watch",
+                //     "text": "watch ((page_t *)0x80247120)->flags & 1<<5",
+                //     "ignoreFailures": false
+                // },
+                // {
                 //     "description":  "将反汇编风格设置为 Intel",
                 //     "text": "-gdb-set disassembly-flavor intel",
                 //     "ignoreFailures": true

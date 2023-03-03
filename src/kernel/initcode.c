@@ -25,7 +25,7 @@ void main() {
     openat(-100, "./swap", O_CREATE);
 
     memuse();
-    // lmbench("lat_ctx", "-P", "1", "-s", "32", "2", "4", "8", "16", "24", "32", "64", "96");
+    lmbench("lat_ctx", "-P", "1", "-s", "32", "2", "4", "8", "16", "24", "32", "64", "96");
     run("./mem_test");
     shell();
     shell("./busybox_testcode.sh");

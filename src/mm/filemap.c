@@ -60,18 +60,17 @@ page_t *find_page(struct address_space *mapping, unsigned long offset){
   release(&mapping->tree_lock);
   return page;
 }
+
 /*
  * a rather lightweight function, finding and getting a reference to a
  * hashed page atomically.
  */
 page_t *find_get_page(struct address_space *mapping, unsigned long offset)
 {
-  // uint64 pa = 0;
   page_t *page;
 
   page = find_page(mapping, offset);
-  // printf(rd("pa: %p\n"), pa);
-  /* increase the ref counts of the page that pa belongs to*/
+  /* increase the ref counts of the page that pa belongs to */
   if (page)
     get_page(page);
   return page;
@@ -92,6 +91,7 @@ void add_to_page_cache(page_t *page, struct address_space *mapping, pgoff_t offs
   page->index = offset;
 
   /* 一个页添加到多个pagecache中，在remove_from_page_cache中put */
+  /* 原来的版本中添加入pagecache不增加引用 */
   // get_page(page);
 
   acquire(&mapping->tree_lock);
@@ -100,11 +100,11 @@ void add_to_page_cache(page_t *page, struct address_space *mapping, pgoff_t offs
   mapping->nrpages++;
 }
 
-void add_to_page_cache_lru(page_t *page, struct address_space *mapping, pgoff_t index){
+void add_to_page_cache_and_lru(page_t *page, struct address_space *mapping, pgoff_t index){
   /* 添加到page cache */
   add_to_page_cache(page, mapping, index);
   /* 添加到 inactive list(因为是先缓存到cache里的，素以执行mark_page_accessed的时候可能还不在inactive list上) */
-  lru_cache_add(page);
+  add_page_to_lru_list(page);
 }
 
 /**
@@ -136,17 +136,9 @@ void walk_free_rdt(struct radix_tree_node *node, uint8 height, uint8 c_h)
       if (c_h == height)
       {
         page_t *page = (page_t *)(node->slots[i]);
-        // /* 是释放一整个物理页吗？ */
-        // printf(bl("walk free pa: %p\n"), pa);
-        // kfree(pa);
-#ifdef RMAP
         if(page_mapped(page))
           ER();
-#endif
-        // put_page(page);
         free_one_pagecache_page(page);
-        // printf("pa: %p\n", pa);
-        // print_buddy(); 
       }
       else
       {
@@ -155,9 +147,7 @@ void walk_free_rdt(struct radix_tree_node *node, uint8 height, uint8 c_h)
       }
     }
   }
-  // printf("free node %x\n", node);
   kfree((void *)node);
-  // printf("node freed\n");
 }
 
 /**
@@ -187,11 +177,9 @@ void free_mapping(entry_t *entry)
       ER();
     walk_free_rdt(root->rnode, root->height, 1);
   } else if(root->height == 0 && root->rnode){
-#ifdef RMAP
+
     if(page_mapped((page_t *)root->rnode))
       ER();
-#endif
-    // put_page((page_t *)root->rnode);
     free_one_pagecache_page((page_t *)root->rnode);
   }
   /* free i_mapping */
@@ -206,10 +194,6 @@ void free_mapping(entry_t *entry)
 void readahead(entry_t *entry, uint64_t index, int pg_cnt, int end_index, int lru_flag){
   int i;
   rw_page_list_t *pg_list = kzalloc(sizeof(rw_page_list_t));
-  assert(pg_list);
-  // todo("allocate more than one page has bug!");
-  // uint64_t pa = (uint64_t)kzalloc(pg_cnt * PGSIZE);
-  // uint64_t cur_pa = pa;
   uint64_t cur_index = index;
 
 
@@ -224,7 +208,7 @@ void readahead(entry_t *entry, uint64_t index, int pg_cnt, int end_index, int lr
       page_t *page = PATOPAGE(cur_pa);
       add_to_page_cache(page, entry->i_mapping, cur_index);
       if(lru_flag)
-        lru_cache_add(page);  
+        add_page_to_lru_list(page);  
       read_page->pa = cur_pa;
       // cur_pa += PGSIZE;
       read_page->pg_id = cur_index;
@@ -278,8 +262,6 @@ int file_end_index(uint64_t file_size){
  */
 int do_generic_mapping_read(struct address_space *mapping, int user, uint64_t buff, int off, int n)
 {
-      // if(user == 1)
-        // for(;;);
   uint index,  end_index;
   uint64 pa, pgoff;
   int rest, cur_off;
@@ -332,10 +314,11 @@ retry:
         pa = (uint64_t)alloc_one_pagecache_page();
         page = PATOPAGE(pa);
 
+        /* 没找到page，重新申请的page增加引用，在下面put掉 */
         get_page(page);
         read_one_page(entry, page, index);
 
-        add_to_page_cache_lru(page, mapping, index);
+        add_to_page_cache_and_lru(page, mapping, index);
       }
       else{
         /* 发挥连续读多块的优势，减小I/O次数 */
@@ -347,13 +330,12 @@ retry:
       pa = PAGETOPA(page);
     }
 
-    mark_page_accessed(page);
+    // mark_page_accessed(page);
     /* 当前页内读取字节数，取总剩余字节数和当前页可读字节数的最小值 */
     int len = min(rest, PGSIZE - pgoff);
     /* 文件最后一页 */
     len = min(len, file_size - pgoff);
 
-    // printf(ylw("buff: %p pa: %p\n"), buff, pa);
     either_copyout(user, buff, (void *)(pa + pgoff), len);
 
     put_page(page);
@@ -396,20 +378,15 @@ uint64_t do_generic_mapping_write(struct address_space *mapping, int user, uint6
       if(!(pg_off == 0 && rest >= PGSIZE))
         if(pg_id < pgnums_in_disk)
           read_one_page(entry, page, pg_id);
-      add_to_page_cache_lru(page, mapping, pg_id);
+      add_to_page_cache_and_lru(page, mapping, pg_id);
     }
     else{
       pa = PAGETOPA(page);
     }
 
-    mark_page_accessed(page);
-
-    // SetPageDirect(page);
-
     len = min(rest, PGSIZE - pg_off);
     either_copyin((void* )(pa + pg_off), user, buff, len);
 
-    // ERROR("to handle the only index 0 set tag and clear tag");
     set_pg_rdt_dirty(page, &mapping->page_tree, pg_id, PAGECACHE_TAG_DIRTY);
 
     unlock_put_page(page);
@@ -438,7 +415,6 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
   page_t *page;
   uint64 pa;
 
-  // struct file *file = area->map_file;
   entry_t *entry = area->map_entry;
   address_space_t *mapping = entry->i_mapping;
 
@@ -448,7 +424,6 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
   /* area所包含的最后一页 */
   endoff = (area->len >> PAGE_CACHE_SHIFT) + area->offset;
   /* 文件最后一个index号 */
-  // end_index = file->ep->raw.size >> PAGE_CACHE_SHIFT;
   end_index = file_end_index(entry->raw.size);
 
   if(pgoff > end_index || pgoff > endoff)
@@ -457,18 +432,9 @@ int filemap_nopage(pte_t *pte, vma_t *area, uint64_t address){
 retry:
   page = find_get_page(mapping, pgoff);
 
-  /* 因为下面要从lru中删除，所以 */
-  lru_add_drain();
-
-// TODO: 存在或不存在LRU链表是契税不确定的
   if(!page) {
     int rest = entry->size_in_mem - mapping->nrpages*PGSIZE;
     int pgcnts = cal_readahead_page_counts(rest);
-
-    // if(entry == myproc()->exe){
-    //   pgoff = 0;
-    //   pgcnts = entry->size_in_mem / PGSIZE;
-    // }
 
     /* 即rest需要大于0 */
     if(pgcnts < 1){
@@ -480,7 +446,6 @@ retry:
     
     if(pgcnts == 1){
       // 不存在LRU
-      // pa = (uint64_t)kalloc();
       pa = (uint64_t)alloc_one_pagecache_page();
       page = PATOPAGE(pa);
 
@@ -497,54 +462,41 @@ retry:
     // 存在/不存在LRU
     pa = PAGETOPA(page);
     /* 如果在lru中，取下 */
-    if(TestClearPageLRU(page))
-      del_page_from_lru(&memory_zone, page);
+    if(PageLRU(page))
+      del_page_from_lru_list(page);
   }
-  // mark_page_accessed(page);
 
   /**
    * private mmap和shared mmap
    */
   if(area->flags & MAP_PRIVATE){
-    // uint64_t pa0 = (uint64_t)kalloc();
     uint64_t pa0 = (uint64_t)alloc_one_anonymous_page();
-#ifdef RMAP
     page_t *page0 = PATOPAGE(pa0);
+
     if (in_rmap_area(address))
       page_add_rmap(page0, pte);
-#ifdef SWAP
     /* 页替换算法需要用到swap */
-    lru_cache_add(page0);
-    mark_page_accessed(page0);
-#endif
-#endif
+    add_page_to_lru_list(page0);
     memcpy((void *)pa0, (void *)pa, PGSIZE);
     
-    lru_cache_add(page);
-    mark_page_accessed(page);
+    add_page_to_lru_list(page);
+    /* shared的情况下mapped两次，所以不用put，这里put掉，有些乱。 */
     put_page(page);
 
     *pte = PA2PTE(pa0) | riscv_map_prot(area->prot) | PTE_V;
   }
   else if(area->flags & MAP_SHARED){
     /* shared */
-    /* 这里小心被页回收算法回收掉！要建立rmap，如果不支持rmap需要从lru上取下来，防止被回收 */
     *pte = PA2PTE(pa) | riscv_map_prot(area->prot) | PTE_V;
-    /* 没有rmap，从lru链表上删除，不参与页回收 */
-#ifdef RMAP
-    lru_cache_add(page);
-    mark_page_accessed(page);
+    add_page_to_lru_list(page);
     if(in_rmap_area(address))
       page_add_rmap(page, pte);
-#endif
   }
   sfence_vma_addr(address);
 
   return 0; 
 }
 
-#ifdef RMAP
-#ifdef SWAP
 extern fat32_t *fat;
 /**
  * 和 fiemap_nopage很像，index是存在pte上的。
@@ -562,8 +514,9 @@ int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address){
 
     page = find_get_page(mapping, index);
     if(!page){
-        // pa = (uint64_t)kalloc();
-        pa = (uint64_t)alloc_one_anonymous_page();
+        /* IMPORTANT! 这里原来使用的是alloc anonymous page，但是后面要加入到
+          swap cache中并且映射，所以也当做pagecache来处理吧。 */
+        pa = (uint64_t)alloc_one_pagecache_page();
         page = PATOPAGE(pa);
         get_page(page);
         add_to_page_cache(page, mapping, index);
@@ -572,8 +525,10 @@ int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address){
     else{
       pa = PAGETOPA(page);
     }
-    lru_cache_add(page);
-    mark_page_accessed(page);
+
+    /* 如果是在find_get_page中找到的，则已经在lru链表中了 */
+    if(!PageLRU(page))
+      add_page_to_lru_list(page);
 
     put_page(page);
 
@@ -584,8 +539,6 @@ int swap_in_page(pte_t *pte, vma_t *vma, uint64_t address){
     } 
     return 0;
 }
-#endif
-#endif
 
 void init_pg_head(rw_page_list_t *pg_list){
   pg_list->head = NULL;

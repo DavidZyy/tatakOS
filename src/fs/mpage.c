@@ -51,26 +51,7 @@ int rw_one_page(entry_t *entry, page_t *page, uint32 index, int rw){
   return 0;
 }
 
-// int read_one_page(entry_t *entry, uint64 buff, uint32 index){ 
 
-//   bio_t *bio = get_rw_pages_bio(entry, buff, index, 1, READ);
-//   if(bio)
-//     submit_bio(bio);
-  
-//   return 0;
-// }
-
-// /**
-//  * 把一个页写回disk。
-//  */
-// int write_one_page(entry_t *entry, uint64_t buff, uint32_t index){
-  
-//   bio_t *bio = get_rw_pages_bio(entry, buff, index, 1, WRITE);
-//   if(bio)
-//     submit_bio(bio);
-  
-//   return 0;
-// }
 /**
  * @brief give a list of bio_vec and a start address buff, assign to 
  * bio_vec buff with the value of "buff", and plus offset for it.
@@ -88,36 +69,6 @@ void bio_vec_buff_assignment(bio_vec_t *first_bio_vec, uint64 buff, uint32_t bps
   }
 }
 
-// /**
-//  * @brief 找出所有要读的磁盘块号，记录在bio中，把一个页(page)按照扇区(sector)连续的原则分为段(segment)
-//  * 
-//  */
-// bio_t *do_readpage(entry_t *entry, uint64 buff, uint32 index){
-//   bio_t *bio = kzalloc(sizeof(bio_t));
-//   struct bio_vec *first_bio_vec;
-//   /* 用来统计扇区总数是否符合条件 */
-//   // int sect_num = 0;
-//   uint32 bps = entry->fat->bytes_per_sec;
-
-//   first_bio_vec = fat_get_sectors(entry->fat, entry->clus_start, index*PGSIZE, PGSIZE);
-//   // cur_bio_vec = first_bio_vec;
-//   // while(cur_bio_vec != NULL){
-//   //   cur_bio_vec->bv_buff = (void *)buff;
-//   //   buff += cur_bio_vec->bv_count * bps;
-
-//   //   cur_bio_vec = cur_bio_vec->bv_next;
-//   // }
-//   bio_vec_buff_assignment(first_bio_vec, buff, bps);
-
-//   // if(PGSIZE / bps != sect_num)
-//   //   panic("do_readpage: sector num is wrong!");
-//   bio->bi_io_vec = first_bio_vec; 
-//   bio->bi_rw = READ;
-//   bio->bi_dev = entry->fat->dev;
-//   // print_bio_vec(bio);
-//   return bio;
-// }
-
 
 /**
  * @brief Get the rw pages bio object
@@ -133,28 +84,15 @@ bio_t *get_rw_pages_bio(entry_t *entry, uint64 buff, uint32 pg_id, int pg_cnt, i
   bio_t *bio = kzalloc(sizeof(bio_t));
   struct bio_vec *first_bio_vec;
   /* 用来统计扇区总数是否符合条件 */
-  // int sect_num = 0;
   uint32 bps = entry->fat->bytes_per_sec;
 
-  // printf(grn("pg_id: %d\tpg_cnt: %d\n"), pg_id, pg_cnt);
   first_bio_vec = fat_get_sectors(entry->fat, entry->clus_start, pg_id*PGSIZE, pg_cnt*PGSIZE);
-  // cur_bio_vec = first_bio_vec;
-  // while(cur_bio_vec != NULL){
-  //   cur_bio_vec->bv_buff = (void *)buff;
-  //   buff += cur_bio_vec->bv_count * bps;
 
-  //   cur_bio_vec = cur_bio_vec->bv_next;
-  // }
   bio_vec_buff_assignment(first_bio_vec, buff, bps);
 
-  // if(PGSIZE / bps != sect_num)
-  //   panic("do_readpage: sector num is wrong!");
   bio->bi_io_vec = first_bio_vec; 
   bio->bi_rw = rw;
   bio->bi_dev = entry->fat->dev;
-
-  // print_bio_vec(bio);
-  // printf("\n");
 
   return bio;
 }
@@ -173,93 +111,9 @@ void free_rw_page_list(rw_page_list_t *pg_list, int rw){
     kfree((void*)rw_page);
   }
 
-  // rw_page_t *pg = pg_list->head;
-  // while(pg){
-  //   rw_page_t *tmp = pg->next;
-  //   kfree((void*)pg);
-  //   pg = tmp;
-  // }
   kfree(pg_list);
 }
 
-// /**
-//  * @brief get dirty pages from mapping, and get corresponding sectors,
-//  * write back to disk.
-//  * 
-//  */
-// int mpage_writepages(address_space_t *mapping){
-//   entry_t *entry = mapping->host;
-//   pages_be_found_head_t *pg_list;
-//   pages_be_found_t *cur_page, *next_page;
-//   uint32_t nr_continuous_pages;
-  
-
-//   // printf_radix_tree(&mapping->page_tree);
-
-//   pg_list = find_pages_tag(mapping, PAGECACHE_TAG_DIRTY);
-  
-//   // print_pages_be_found(pg_list);
-
-//   /* no page in mapping is dirty */
-//   if(pg_list == NULL)
-//     return 0;
-//   // if(pg_list->head == NULL){
-//     /* free the pg_list !!!*/
-//     // kfree(pg_list);
-//     // return 0;
-//   // }
-//   /** 
-//    * 合并pg_id连续的页, 一批连续的页调用一次get_sectors, 这样可以使得得到的一个bio_vec
-//    * 包含的sectors尽可能多。因为在lookup_tag递归查询时，是按照页index递增的顺序查询的，所以
-//    * 在pg_head链表中的页index是递增的。
-//    * 
-//    * 补充：合并的要求比较严格，不仅要求页的pg_id是连续的，还要要求页的pa是连续的才行，要求比较严格。
-//    */
-//   cur_page = pg_list->head;
-//   while(cur_page){
-//     nr_continuous_pages = 1;
-
-//     /* find max counts of continuous page */
-//     next_page = cur_page->next;
-//     pages_be_found_t *tmp = cur_page;
-//     #ifdef TODO
-//     todo("modify the allocated page address, make the later allocated one bigger than the former one");
-//     #endif
-//     // printf("start merge\n");
-//     while(next_page){
-//       if((next_page->pg_id == tmp->pg_id+1) && (next_page->pa == tmp->pa + PGSIZE)){
-//         nr_continuous_pages++;
-//         next_page = next_page->next;
-//         tmp = tmp->next;
-//       }
-//       else
-//         break;
-//     }
-//     // printf("merge end\n");
-//     // printf(rd("cur_page->pa: %p\t cur_page->pg_id: %d\t nr continuous pages: %d\n"), cur_page->pa, cur_page->pg_id, nr_continuous_pages);
-    
-//     bio_t *bio = get_rw_pages_bio(entry, cur_page->pa, cur_page->pg_id, nr_continuous_pages, WRITE);
-//     // printf("bio get\n");
-//     // print_bio_vec(bio);
-//     // printf("submit...\n");
-//     submit_bio(bio);
-//     // printf("submit end...\n");
-//     cur_page = next_page;
-//   }
-
-//   /* 这里别忘了释放pghead相关的结构体！ */
-//   free_rw_page_list(pg_list);
-//   // pages_be_found_t *pg = pg_list->head;
-//   // while(pg){
-//   //   pages_be_found_t *tmp = pg->next;
-//   //   kfree((void*)pg);
-//   //   pg = tmp;
-//   // }
-//   // kfree(pg_list);
-
-//   return 0;
-
-// }
 
 /**
  * 将由pg_head串联起来的页写回磁盘。
@@ -290,10 +144,7 @@ int rw_pages(entry_t *entry, rw_page_list_t *pg_list, int rw){
     /* find max counts of continuous page */
     next_page = cur_page->next;
     rw_page_t *tmp = cur_page;
-    #ifdef TODO
-    todo("modify the allocated page address, make the later allocated one bigger than the former one");
-    #endif
-    // printf("start merge\n");
+
     while(next_page){
       if((next_page->pg_id == tmp->pg_id+1) && (next_page->pa == tmp->pa + PGSIZE)){
         nr_continuous_pages++;
@@ -303,28 +154,14 @@ int rw_pages(entry_t *entry, rw_page_list_t *pg_list, int rw){
       else
         break;
     }
-    // printf("merge end\n");
-    // printf(rd("cur_page->pa: %p\t cur_page->pg_id: %d\t nr continuous pages: %d\n"), cur_page->pa, cur_page->pg_id, nr_continuous_pages);
     
     bio_t *bio = get_rw_pages_bio(entry, cur_page->pa, cur_page->pg_id, nr_continuous_pages, rw);
-    // printf("bio get\n");
-    // print_bio_vec(bio);
-    // printf("submit...\n");
     submit_bio(bio);
-    // printf("submit end...\n");
     cur_page = next_page;
   }
 
   /* 这里别忘了释放pghead相关的结构体！ */
   free_rw_page_list(pg_list, rw);
-  // pages_be_found_t *pg = pg_list->head;
-  // while(pg){
-  //   pages_be_found_t *tmp = pg->next;
-  //   kfree((void*)pg);
-  //   pg = tmp;
-  // }
-  // kfree(pg_list);
-
   return 0;
 }
 
@@ -375,7 +212,6 @@ zone_t *zone = &memory_zone;
  * @param height 
  */
 void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_node_t *node, int height){
-// void __get_all_putable_pages_in_pagecache(entry_t *entry){
   if(height == 0){
     if(!node)
       return;
@@ -385,22 +221,16 @@ void __get_all_putable_pages_in_pagecache(list_head_t *page_head, radix_tree_nod
     /* 在这里锁住页，那么解锁后其他进程不是又可以获取该页了吗？但是此时页已经被释放了，再去获取是错误的，
     从这个角度看，锁好像没用 */
     if(!TestSetPageLocked(page) && !PageWriteback(page)){
-#ifdef RMAP
       if(page_mapped(page)){
-        /*forget the below line, swap in 的页在swap文件中，
+        /*forget the below line, 通过swap in换入的页在swap文件中，
           且有映射，所以这里会返回，但是没有清掉locked bit*/
         ClearPageLocked(page);
         return;
       }
-#endif
+
       /* 别忘了这一步 */
-      // list_del_init(&page->lru);
-      // TestClearPageLRU(page);
-      /* put_page也会把page从lru上取下，这里为了利用page的链表(lru field)，提前取下 */
-      spin_lock(&zone->lru_lock);
-      if(TestClearPageLRU(page))
-          del_page_from_lru(zone, page);
-      spin_unlock(&zone->lru_lock);
+      if(PageLRU(page))
+        del_page_from_lru_list(page);
       INIT_LIST_HEAD(&page->lru);
 
       list_add_tail(&page->lru, page_head);
@@ -430,32 +260,6 @@ void get_all_putable_pages_in_pagecache(entry_t *entry, list_head_t *page_head){
 
 /* 把所有的页都移除entry的pagecache，释放页 */
 void remove_put_pages_in_pagecache(entry_t *entry){
-  // // address_space_t *mapping = entry->i_mapping;
-  // // rw_page_list_t *pg_list;
-  // // rw_page_t *rm_page;
-
-  // // /* 找到entry所有的dirty page */
-  // // pg_list = find_pages_tag(mapping, PAGECACHE_TAG_DIRTY);
-
-
-  // // if(pg_list == NULL)
-  // //   return;
-  
-  // // for(rm_page = pg_list->head; rm_page; rm_page=rm_page->next){
-  // //   page_t *page = PATOPAGE(rm_page->pa);
-  // //   /* 映射过的页通过页回收算法回收 */
-  // //   if(page_mapped(page))
-  // //     continue;
-  // //   if(TestSetPageLocked(page))
-  // //     continue;
-  // //   remove_from_page_cache(page);
-  // //   /* page已经被释放掉了，unlock_page唤醒似乎也无效了 */
-  // //   if (!TestClearPageLocked(page))
-  // //     ER();
-  // //   put_page(page);
-  // // }
-
-  // free_rw_page_list(pg_list, READ);
   /*遍历并删除链表节点，因为链表不能直接删除当前节点cur，
     所以这里使用了cur和prev，但是感觉这种方式不好*/
   page_t *cur_page;
@@ -467,11 +271,14 @@ void remove_put_pages_in_pagecache(entry_t *entry){
   if(list_empty(&page_head))
     return;
 
+  /* 从shrink_list中学来，把链表中的元素取下来操作 */
+//   while(!list_empty(&page_head)){
+// 
+//   }
 
   list_for_each_entry(cur_page, &page_head, lru){
     if(prev_page){
       list_del(&prev_page->lru);
-      // put_page(prev_page);
       free_one_pagecache_page(prev_page);
     }
 
@@ -479,19 +286,15 @@ void remove_put_pages_in_pagecache(entry_t *entry){
       ER();
 
 #ifdef CHECK_BOUNDARY
-#ifdef RMAP
     if(page_mapped(cur_page))
       ER();
-#endif
 #endif
 
     remove_from_page_cache(cur_page);
     if(!TestSetPageLocked(cur_page))
       ER();
 
-    // /* 一边遍历一边修改链表 */
-    // list_del(&cur_page->lru);
-    // put_page(cur_page);
+    /* 一边遍历一边修改链表 */
     /* can't put cur_page in current loop, because put page will release it's lru, which we need 
       to find the next page */
     prev_page = cur_page;
@@ -499,7 +302,6 @@ void remove_put_pages_in_pagecache(entry_t *entry){
 
   if(prev_page){
     list_del(&prev_page->lru);
-    // put_page(prev_page);
     free_one_pagecache_page(prev_page);
   }
 

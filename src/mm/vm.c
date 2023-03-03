@@ -48,7 +48,7 @@ void pvec_init();
 void
 kvminithart()
 {
-  pvec_init();
+  // pvec_init();
   w_satp(MAKE_SATP(kernel_pagetable));
   sfence_vma();
 }

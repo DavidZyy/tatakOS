@@ -76,13 +76,10 @@ void *kmalloc(size_t size) {
         sleep(&use_reserved_flag, NULL);
 retry:
     try_times++;
-    // if(try_times > 10)
-        // ERROR("try many times and failed!\n");
+    if(try_times > 10)
+        ERROR("try many times and failed!\n");
     // Smaller, we use slob
     if(size < PGSIZE) { 
-        // printf("alloc from slob\n");
-        // if(size == 1)
-        //     panic("one byte?");
         ret = slob_alloc(size);
     } else { // more than one page, We use buddy
         ret = buddy_alloc(size);
@@ -91,11 +88,8 @@ retry:
     if(!ret){
         /* 当前没有进程正在进行页回收 */
         if(!TestSetUseReserved()){
-            // buddy_print_free();
             p->reclaim_flag = 1;
             free_more_memory();
-            // buddy_print_free();
-            // printf("\n");
 
             /* 回收完毕，清除标记位 */
             if(!TestClearUseReserved())
@@ -104,10 +98,8 @@ retry:
             wakeup(&use_reserved_flag);
         }
         else{
-            /* 只需要一个进程回收页即可，如果检测到已经有其他进程回收了，睡眠 */
-            /* 似乎没有锁需要释放 */
+            /* 已经有进程进行页回收了，则当前进程应该在前面进入sleep，不应该跑到这里来 */
             ER();
-            // sleep(&use_reserved_flag, NULL);
         }
         goto retry;
     }
@@ -146,7 +138,6 @@ void kfree(void *addr) {
     
 }
 
-
 void _kfree_safe(void **paddr) {
     if(paddr && *paddr) {
         kfree(*paddr);
@@ -154,18 +145,16 @@ void _kfree_safe(void **paddr) {
     }
 }
 
+/**
+ * 释放一个页，如果此页在lru链表上，则取下来。
+ */
 void free_one_page(page_t *page) {
-    zone_t *zone = &memory_zone;
-    spin_lock(&zone->lru_lock);
-    if(TestClearPageLRU(page))
-        del_page_from_lru(zone, page);
-    spin_unlock(&zone->lru_lock);
+   if(PageLRU(page))
+        del_page_from_lru_list(page);
 
 #ifdef CHECK_BOUNDARY
-#ifdef RMAP
     if(page_mapped(page))
         ER();
-#endif
 #endif
 
     buddy_free_one_page(page);

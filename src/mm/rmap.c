@@ -126,7 +126,7 @@ int page_referenced(page_t *page){
     }
     if (nr_chains == 1) {
 			pc = page->pte.chain;
-      /* 在pte_chain中时倒放的，从NRPTE开始 */
+      /* 在pte_chain中是倒放的，从NRPTE开始 */
 			page->pte.direct = pc->ptes[NRPTE-1];
 			SetPageDirect(page);
 			pc->ptes[NRPTE-1] = 0;
@@ -160,19 +160,12 @@ static int try_to_unmap_one(page_t *page, pte_addr_t paddr)
 	if(pte_dirty(pte))
 		SetPageDirty(page);
 
-#ifdef RMAP
-	/* 重复释放了 */	
   atomic_dec(&page->mapcount);
-	// page_remove_rmap(page, paddr);
-#ifdef SWAP
 	if(PageSwapCache(page)){
 		*ptep = (page->index) << 10;
 	}
-#endif
-#endif
 	/* 如果paddr位于当前页表，本该刷掉paddr在当前页表中的va，但是考虑到查找的效率可能不高，还不如在shrink_list中
 		刷掉整个页表 */
-	// put_page(page);
 	return 0;
 }
 

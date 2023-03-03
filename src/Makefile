@@ -42,5 +42,6 @@ start_recursive_build:
 $(TARGET): $(BUILD_DIR)/built-in.o
 	@echo -e "LD\t\tkernel"
 	@$(LD) $(LDFLAGS) -L$(SCRIPT) -T $(SCRIPT)/kernel-$(platform).ld -o $(TARGET) $<
-	@$(OBJDUMP) -S $(TARGET) > $(TARGET).asm
+	# @$(OBJDUMP) -S $(TARGET) > $(TARGET).asm
+	@$(OBJDUMP) -d $(TARGET) > $(TARGET).asm
 	@$(OBJDUMP) -t $(TARGET) | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(TARGET).sym

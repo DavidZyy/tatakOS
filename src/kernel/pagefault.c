@@ -129,18 +129,15 @@ static int do_anonymous_page(pte_t *pte, vma_t *vma, uint64_t address){
 
     *pte = PA2PTE(newpage) | riscv_map_prot(vma->prot) | PTE_V;
 
-#ifdef RMAP
     page_t *page = PATOPAGE(newpage);
     /* 给用户空间的映射建立rmap */
     if (in_rmap_area(address))
         page_add_rmap(page, pte);
-#ifdef SWAP
+
+    /* 为什么要加这个条件？是为了lazy加载exe？ */
     if(vma->addr != 0x1000){
-        lru_cache_add(page);
-        mark_page_accessed(page);
+        add_page_to_lru_list(page);
     }
-#endif
-#endif
     /* 本来就为0，是否有必要？ */
     sfence_vma_addr(address);
     return 1;

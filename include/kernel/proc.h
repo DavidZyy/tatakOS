@@ -35,8 +35,8 @@ struct pagevec;
 struct cpu {
   struct proc *proc;          // The process running on this cpu, or null.
   struct context context;     // swtch() here to enter scheduler().
-  struct pagevec *inactive_pvec;
-  struct pagevec *active_pvec;
+  // struct pagevec *inactive_pvec;
+  // struct pagevec *active_pvec;
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
 };
@@ -175,6 +175,6 @@ void            sig_send(proc_t *p, int signum);
 int             freechild();
 void            pstate_migrate(proc_t *p, int newstate);
 
-struct pagevec* my_inactive_pvec();
-struct pagevec* my_active_pvec();
+// struct pagevec* my_inactive_pvec();
+// struct pagevec* my_active_pvec();
 #endif

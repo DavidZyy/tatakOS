@@ -259,10 +259,12 @@ void print_zone_list(list_head_t *head){
 }
 
 void print_zone_list_info(zone_t *zone){
-  printf(grn("nr_inactive: %d\n"), zone->nr_inactive);
-  print_zone_list(&zone->inactive_list);
-  printf(grn("nr_active %d\n"), zone->nr_active);
-  print_zone_list(&zone->active_list);
+  // printf(grn("nr_inactive: %d\n"), zone->nr_inactive);
+  // print_zone_list(&zone->inactive_list);
+  // printf(grn("nr_active %d\n"), zone->nr_active);
+  // print_zone_list(&zone->active_list);
+  printf(grn("nr_lru %d\n"), zone->lru_list);
+  print_zone_list(&zone->lru_list);
 }
 
 struct rw_page_list;
@@ -339,8 +341,9 @@ void print_page_state(){
 
   printf(ylw("total(sum of above):\t")"%d\n", sum);
 
-  printf(bl("nr_active\t")"%d\n", zone->nr_active);
-  printf(bl("nr_inactive\t")"%d\n", zone->nr_inactive);
+  // printf(bl("nr_active\t")"%d\n", zone->nr_active);
+  // printf(bl("nr_inactive\t")"%d\n", zone->nr_inactive);
+  printf(bl("nr_lru\t")"%d\n", zone->nr_lru);
 
   printf("\n");
 }

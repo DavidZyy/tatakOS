@@ -158,23 +158,23 @@ struct proc *myproc(void) {
   return p;
 }
 
-struct pagevec;
-
-struct pagevec *my_inactive_pvec(){
-  push_off();
-  struct cpu *c = mycpu();
-  struct pagevec *inactive_pvec = c->inactive_pvec;
-  // pop_off();
-  return inactive_pvec;
-}
-
-struct pagevec *my_active_pvec(){
-  push_off();
-  struct cpu *c = mycpu();
-  struct pagevec *active_pvec = c->active_pvec;
-  // pop_off();
-  return active_pvec;
-}
+// struct pagevec;
+// 
+// struct pagevec *my_inactive_pvec(){
+//   push_off();
+//   struct cpu *c = mycpu();
+//   struct pagevec *inactive_pvec = c->inactive_pvec;
+//   // pop_off();
+//   return inactive_pvec;
+// }
+// 
+// struct pagevec *my_active_pvec(){
+//   push_off();
+//   struct cpu *c = mycpu();
+//   struct pagevec *active_pvec = c->active_pvec;
+//   // pop_off();
+//   return active_pvec;
+// }
 
 int get_proc_cnt() {
   return atomic_get(&proc_cnt);

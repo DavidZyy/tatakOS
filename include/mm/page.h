@@ -189,6 +189,9 @@ static inline pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
     return __walk(pagetable, va, alloc, PGSPEC_NORMAL);
 }
 
+void add_page_to_lru_list(page_t *page);
+void del_page_from_lru_list(page_t *page);
+
 #define PAGE_CACHE_SHIFT PGSHIFT
 #define PAGE_CACHE_SIZE PGSIZE
 
@@ -222,10 +225,12 @@ struct zone{
 
     /* Fields commonly accessed by the page reclaim scanner */
     spinlock_t lru_lock;
-    list_head_t active_list;        /* 活跃页链表 */
-    list_head_t inactive_list;      /* 非活跃页链表 */
-    uint64_t nr_active;             /* 活跃页数量 */
-    uint64_t nr_inactive;           /* 非活跃页数量 */
+    // list_head_t active_list;        /* 活跃页链表 */
+    // list_head_t inactive_list;      /* 非活跃页链表 */
+    // uint64_t nr_active;             /* 活跃页数量 */
+    // uint64_t nr_inactive;           /* 非活跃页数量 */
+    list_head_t lru_list;
+    uint64_t nr_lru;
     // uint64_t pages_scanned;
 };
 
@@ -233,48 +238,48 @@ typedef struct zone zone_t;
 
 extern zone_t memory_zone;
 /* mm_inline.h */
-static inline void
-add_page_to_active_list(struct zone *zone, page_t *page)
-{
-	list_add(&page->lru, &zone->active_list);
-	zone->nr_active++;
-}
-
-static inline void
-add_page_to_inactive_list(struct zone *zone, page_t *page)
-{
-	list_add(&page->lru, &zone->inactive_list);
-	zone->nr_inactive++;
-}
-
-static inline void
-del_page_from_active_list(struct zone *zone, page_t *page)
-{
-	list_del(&page->lru);
-	zone->nr_active--;
-}
-
-static inline void
-del_page_from_inactive_list(struct zone *zone, page_t *page)
-{
-	list_del(&page->lru);
-	zone->nr_inactive--;
-}
-
-static inline void
-del_page_from_lru(struct zone *zone, page_t *page)
-{
-	list_del(&page->lru);
-	if (PageActive(page)) {
-		ClearPageActive(page);
-		zone->nr_active--;
-	} else {
-		zone->nr_inactive--;
-	}
-}
+// static inline void
+// add_page_to_active_list(struct zone *zone, page_t *page)
+// {
+// 	list_add(&page->lru, &zone->active_list);
+// 	zone->nr_active++;
+// }
+// 
+// static inline void
+// add_page_to_inactive_list(struct zone *zone, page_t *page)
+// {
+// 	list_add(&page->lru, &zone->inactive_list);
+// 	zone->nr_inactive++;
+// }
+// 
+// static inline void
+// del_page_from_active_list(struct zone *zone, page_t *page)
+// {
+// 	list_del(&page->lru);
+// 	zone->nr_active--;
+// }
+// 
+// static inline void
+// del_page_from_inactive_list(struct zone *zone, page_t *page)
+// {
+// 	list_del(&page->lru);
+// 	zone->nr_inactive--;
+// }
+// 
+// static inline void
+// del_page_from_lru(struct zone *zone, page_t *page)
+// {
+// 	list_del(&page->lru);
+// 	if (PageActive(page)) {
+// 		ClearPageActive(page);
+// 		zone->nr_active--;
+// 	} else {
+// 		zone->nr_inactive--;
+// 	}
+// }
 
 /* swap.c */
-void mark_page_accessed(page_t *page);
+// void mark_page_accessed(page_t *page);
 
 
 #define PTE_VALID (0) // valid
